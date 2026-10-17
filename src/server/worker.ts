@@ -12,11 +12,23 @@
  * write lock and amplifying the wedge. The other half of the fix is the WAL/busy_timeout pragma
  * setup in src/lib/db.ts. The backoff delays only *when* the next tick is attempted — it never
  * changes job outcomes (determinism law).
+ *
+ * Wave-4 H2 — job retries (server-side mirror of the client's §1d/§1a one-transparent-retry
+ * pattern): a RETRYABLE adapter failure with attempts left re-enqueues the job ONCE
+ * (maxAttempts = 2, `attempt` 1→2, status back to `queued`); attempt ≥ maxAttempts or a
+ * non-retryable cause → terminal `failed`. All terminal/retry state writes are CAS-guarded on
+ * the claim state (`processing`, casUpdate below) — a purged job resolves count=0 with no
+ * exception and no follow-up write. The credit spend / ledger rows are NOT re-executed
+ * and NOT refunded on retry — the cost was already paid atomically at POST time (§1a), so the
+ * retried attempt re-uses the paid slot (disclosed clone-side choice: a refund-and-recharge
+ * loop would let a permanently failing model mint free churn; the live product's billing
+ * behavior on retries was not captured). Insufficient-credit failures never reach the queue
+ * at all (the POST returns a terminal 402 before job creation), so they are terminal by design.
  */
 import { db } from "@/lib/db";
-import type { Generation } from "@prisma/client";
+import type { Generation, Prisma } from "@prisma/client";
 import { mockAdapter } from "./adapters/mock-adapter";
-import type { ModelAdapter } from "./adapters/types";
+import type { AdapterResult, ModelAdapter } from "./adapters/types";
 
 const ADAPTERS: Record<string, ModelAdapter> = {
   mock: mockAdapter,
@@ -25,6 +37,8 @@ const DEFAULT_ADAPTER = "mock";
 
 const TICK_INTERVAL_MS = 200;
 const MAX_BACKOFF_SECONDS = 60;
+// H2: ONE automatic retry for retryable causes (maxAttempts = 2 — attempt 1 + attempt 2).
+const MAX_ATTEMPTS = 2;
 
 const globalForWorker = globalThis as unknown as {
   __hfWorkerStarted?: boolean;
@@ -91,34 +105,81 @@ async function tick(): Promise<void> {
   }
 }
 
+/**
+ * CAS state write (H1 philosophy, applied to the terminal/retry paths): the write only lands
+ * while the row still holds the claim state `processing`. A job purged mid-flight (the test
+ * battery's cleanup deletes users while an adapter delay is in flight — the station-log P2025
+ * pattern) resolves count=0: logged, no exception, and NO futile follow-up write queuing on the
+ * SQLite write lock. The old shape (unguarded `update` → P2025 → catch → second doomed `update`)
+ * is one of the documented wedge amplifiers.
+ */
+async function casUpdate(
+  id: string,
+  data: Prisma.GenerationUpdateManyMutationInput
+): Promise<boolean> {
+  try {
+    const res = await db.generation.updateMany({ where: { id, status: "processing" }, data });
+    return res.count === 1;
+  } catch (err) {
+    console.error(`[f-worker] state write failed for job ${id}:`, err);
+    return false;
+  }
+}
+
 async function runJob(job: Generation): Promise<void> {
   const adapter = ADAPTERS[DEFAULT_ADAPTER];
+  let result: AdapterResult;
   try {
-    const result = await adapter.run(job);
-    if (result.ok) {
-      await db.generation.update({
-        where: { id: job.id },
-        data: {
-          status: "done",
-          assetUrl: result.assetUrl,
-          assetKind: result.assetKind,
-          error: null,
-          completedAt: new Date(),
-        },
-      });
-    } else {
-      await db.generation.update({
-        where: { id: job.id },
-        data: { status: "failed", error: result.error, completedAt: new Date() },
-      });
-    }
+    result = await adapter.run(job);
   } catch (err) {
-    console.error("[hf-worker] adapter crashed:", err);
-    await db.generation
-      .update({
-        where: { id: job.id },
-        data: { status: "failed", error: "adapter crashed", completedAt: new Date() },
-      })
-      .catch(() => undefined);
+    console.error("[f-worker] adapter crashed:", err);
+    const applied = await casUpdate(job.id, {
+      status: "failed",
+      error: "adapter crashed",
+      completedAt: new Date(),
+    });
+    if (!applied) console.log(`[f-worker] job ${job.id} vanished mid-flight — crash state not written`);
+    return;
   }
+
+  if (result.ok) {
+    const applied = await casUpdate(job.id, {
+      status: "done",
+      assetUrl: result.assetUrl,
+      assetKind: result.assetKind,
+      error: null,
+      completedAt: new Date(),
+    });
+    if (!applied) console.log(`[f-worker] job ${job.id} vanished mid-flight — done state not written`);
+    return;
+  }
+
+  if (result.retryable && job.attempt < MAX_ATTEMPTS) {
+    // H2 retry path: re-enqueue once. Ledger/spend stay as-is (the cost was already paid at
+    // POST time — see the file header for the disclosed rationale). Clearing error/timestamps
+    // returns the row to a clean `queued` state for the next claim.
+    const applied = await casUpdate(job.id, {
+      status: "queued",
+      attempt: job.attempt + 1,
+      error: null,
+      startedAt: null,
+      completedAt: null,
+    });
+    if (applied) {
+      console.log(
+        `[f-worker] job ${job.id} attempt ${job.attempt}/${MAX_ATTEMPTS} failed retryably — re-enqueued: ${result.error}`
+      );
+    } else {
+      console.log(`[f-worker] job ${job.id} vanished mid-flight — retry not written`);
+    }
+    return;
+  }
+
+  // Terminal failure: attempt ≥ maxAttempts, or a non-retryable cause (billing/content class).
+  const applied = await casUpdate(job.id, {
+    status: "failed",
+    error: result.error,
+    completedAt: new Date(),
+  });
+  if (!applied) console.log(`[f-worker] job ${job.id} vanished mid-flight — failed state not written`);
 }

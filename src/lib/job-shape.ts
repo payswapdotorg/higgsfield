@@ -26,6 +26,11 @@ export interface JobJson {
   input_images: string[];
   workspace_id: string | null;
   status: "queued" | "processing" | "done" | "failed";
+  // Wave-4 H2 additive key: attempt (1 = first attempt; 2 = after the single automatic
+  // retry). NOT in the §1a evidence job body — added under the same additive-key precedent
+  // as free-gens `remaining` (clone-side disclosure, additive so existing consumers are
+  // unaffected). Absent on legacy rows means 1 (the column default).
+  attempt: number;
   seed: number;
   cost: number;
   credits_spent: CreditSpendEntry[];
@@ -56,6 +61,8 @@ export function jobToJson(g: Generation, modelLabel?: string): JobJson {
     input_images: safeParseArray(g.inputImages),
     workspace_id: g.workspaceId,
     status: g.status as JobJson["status"],
+    // H2 additive key (see interface comment): attempt counter for the single retry.
+    attempt: g.attempt,
     seed: g.seed,
     cost: g.cost,
     credits_spent: safeParseSpend(g.creditSpend),

@@ -56,6 +56,11 @@ model Generation {
   inputImages  String    @default("[]") // JSON array of strings (SQLite has no list columns)
   workspaceId  String?
   status       String    @default("queued") // queued | processing | done | failed
+  /// Wave-4 H2: attempt counter for the single automatic retry (maxAttempts = 2 —
+  /// the server-side mirror of the client-side one-transparent-retry pattern, §1d/§1a:
+  /// 401 → one retry after refresh; 429/403 challenge → toast + one retry). 1 = first
+  /// attempt; a retryable failure re-enqueues the job once with attempt = 2.
+  attempt      Int       @default(1)
   seed         Int
   cost         Int
   creditSpend  String    @default("[]") // JSON [{pool, amount}] — how the cost was funded
