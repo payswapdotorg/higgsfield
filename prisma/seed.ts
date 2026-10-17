@@ -169,13 +169,86 @@ async function main() {
   // ── demo user + credit pools + free-gens (§1c anchors: wallet 1000, daily 10, face_swap 2, touring 5) ──
   const demo = await db.user.upsert({
     where: { email: "demo@hf-studio.local" },
-    update: { username: "demo_creator", displayName: "Demo Creator", planType: "free" },
+    update: {
+      username: "demo_creator",
+      displayName: "Demo Creator",
+      planType: "free",
+      // HF-W5: captured-style profile (api-bodies-digest.json → profile — the
+      // field set is the captured one; the values are clone-side demo values,
+      // clearly not the operator's own, except the nulls which mirror the
+      // captured fresh-account nulls).
+      bio: "Demo creator on the HF Studio clean-room clone — cinematic prompts, community feed fixtures.",
+      headline: "Cinema Studio demo creator",
+      location: null,
+      avatarUrl: null, // no avatar fixture captured for the demo user — null, like the captured defaults
+      showFullName: false,
+      fullName: null,
+      totalProjectsViews: 0,
+      totalProjectsLikes: 0,
+    },
     create: {
       id: "seed-user-demo",
       email: "demo@hf-studio.local",
       username: "demo_creator",
       displayName: "Demo Creator",
       planType: "free",
+      bio: "Demo creator on the HF Studio clean-room clone — cinematic prompts, community feed fixtures.",
+      headline: "Cinema Studio demo creator",
+    },
+  });
+
+  // HF-W5: the demo user's /user/settings consent row — values verbatim from the
+  // captured settings body (api-bodies-digest.json → settings): every consent
+  // false/null, unlimited_settings null, has_image_auto true.
+  await db.userSettings.upsert({
+    where: { userId: demo.id },
+    update: {
+      mediaConsent: false,
+      mediaConsentedAt: null,
+      audioConsent: null,
+      audioConsentedAt: null,
+      unlimitedSettings: null,
+      hasImageAuto: true,
+      characterSheetsConsent: false,
+      characterSheetsConsentedAt: null,
+      aiInfluencerConsent: false,
+      aiInfluencerConsentedAt: null,
+      supercomputerLlmConsent: false,
+      supercomputerLlmConsentedAt: null,
+    },
+    create: { userId: demo.id },
+  });
+
+  // ── HF-W5 CAPTURED-OPERATOR FIXTURE — username/full_name verbatim from the live
+  //    capture (api-bodies-digest.json → profile: username "radiatingcapybara1609",
+  //    full_name "yaslen Catty", show_full_name false, all handles/bio/headline null,
+  //    badges [], totals 0). This is a FIXTURE styled after the captured operator
+  //    account, NOT a live account: email is a .local placeholder, the cloudfront
+  //    avatar_url from the capture is kept (degrades to initials offline), and every
+  //    other field carries the captured null/default so the /profile/[username]
+  //    surface renders the exact captured shape. ──
+  await db.user.upsert({
+    where: { username: "radiatingcapybara1609" },
+    update: {
+      displayName: "radiatingcapybara1609",
+      planType: "free",
+      avatarUrl:
+        "https://d1xarpci4ikg0w.cloudfront.net/profile-avatars/v1/211d812645b21c8482077bd6dd281782.webp",
+      showFullName: false,
+      fullName: "yaslen Catty",
+      totalProjectsViews: 0,
+      totalProjectsLikes: 0,
+    },
+    create: {
+      id: "seed-user-captured-operator",
+      email: "captured-operator@hf-studio.local",
+      username: "radiatingcapybara1609",
+      displayName: "radiatingcapybara1609",
+      planType: "free",
+      avatarUrl:
+        "https://d1xarpci4ikg0w.cloudfront.net/profile-avatars/v1/211d812645b21c8482077bd6dd281782.webp",
+      showFullName: false,
+      fullName: "yaslen Catty",
     },
   });
 
@@ -412,6 +485,7 @@ async function main() {
 
   const counts = {
     users: await db.user.count(),
+    settings: await db.userSettings.count(),
     folders: await db.folder.count(),
     generations: await db.generation.count(),
     pools: await db.creditPool.count(),
