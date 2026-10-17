@@ -16,11 +16,67 @@ model User {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  /// ── HF-W5 profile model (evidence: evidence/rea-2026-10-17/api-bodies-digest.json →
+  /// `profile` — the verbatim /fnf/user/profile body captured on the live operator
+  /// account). Field names map 1:1 onto the captured snake_case keys; values for
+  /// un-seeded users stay null/0/false exactly like the captured fresh account.
+  /// NOTE: the captured body carries exactly SIX social handles (instagram/twitter/
+  /// youtube/tiktok/discord/linkedin) — the dispatch text said "8 social handles",
+  /// but the evidence is the contract, so six is what is modeled (disclosed in
+  /// docs/wave-5-worker-worklog.md).
+  avatarUrl            String?  // avatar_url (captured: cloudfront webp URL)
+  backgroundImageUrl   String?  // background_image_url (captured: null)
+  bio                  String?  // bio (captured: null)
+  headline             String?  // headline (captured: null)
+  instagramHandle      String?  // instagram_handle
+  twitterHandle        String?  // twitter_handle
+  youtubeHandle        String?  // youtube_handle
+  tiktokHandle         String?  // tiktok_handle
+  discordHandle        String?  // discord_handle
+  linkedinHandle       String?  // linkedin_handle
+  showFullName         Boolean  @default(false) // show_full_name (captured: false)
+  fullName             String?  // full_name (captured: "yaslen Catty")
+  location             String?  // location (captured: null)
+  badge                String?  // badge (captured: null — singular)
+  badges               String   @default("[]") // badges — JSON array (captured: []; SQLite has no list columns)
+  totalProjectsViews   Int      @default(0) // total_projects_views (captured: 0)
+  totalProjectsLikes   Int      @default(0) // total_projects_likes (captured: 0)
+
   folders     Folder[]
   generations Generation[]
   creditPools CreditPool[]
   ledger      CreditLedger[]
   freeGens    FreeGensGrant[]
+  settings    UserSettings?
+}
+
+/// HF-W5 — the /fnf/user/settings consent body, verbatim key set (evidence:
+/// evidence/rea-2026-10-17/api-bodies-digest.json → `settings`, cross-checked against
+/// net-capture-with-auth-headers.jsonl: /fnf/user/settings is GET 200 with reqBody
+/// null on every captured row → read-only surface, mutations are NOT cloned).
+/// Defaults mirror the captured values exactly (consents false/null, has_image_auto
+/// true — a state flag, not a consent). unlimitedSettings is the captured
+/// `unlimited_settings` object stored as a JSON string (captured: null).
+model UserSettings {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  mediaConsent            Boolean   @default(false) // media_consent
+  mediaConsentedAt        DateTime? // media_consented_at
+  audioConsent            Boolean?  // audio_consent (captured: null — tri-state)
+  audioConsentedAt        DateTime? // audio_consented_at
+  unlimitedSettings       String?   // unlimited_settings (JSON; captured: null)
+  hasImageAuto            Boolean   @default(true) // has_image_auto
+  characterSheetsConsent  Boolean   @default(false) // character_sheets_consent
+  characterSheetsConsentedAt DateTime? // character_sheets_consented_at
+  aiInfluencerConsent     Boolean   @default(false) // ai_influencer_consent
+  aiInfluencerConsentedAt DateTime? // ai_influencer_consented_at
+  supercomputerLlmConsent Boolean   @default(false) // supercomputer_llm_consent
+  supercomputerLlmConsentedAt DateTime? // supercomputer_llm_consented_at
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 /// "Project" in the product UI is a folder of generations (HF-W2 §3.1 — rename semantics OK).
