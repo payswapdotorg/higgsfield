@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Sparkles, Users, LayoutGrid, Folder as FolderIcon, Trash2, CreditCard, Menu, Zap, LogOut, Clapperboard } from "lucide-react";
+import { Sparkles, Users, LayoutGrid, Folder as FolderIcon, Trash2, CreditCard, Menu, Zap, LogOut, Clapperboard, Megaphone, Newspaper, UserRound, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,21 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       {link("/", "Create", <Clapperboard className="h-4 w-4" aria-hidden />, true)}
       {link("/community", "Community", <Users className="h-4 w-4" aria-hidden />)}
       {link("/pricing", "Pricing", <CreditCard className="h-4 w-4" aria-hidden />)}
+
+      {/*
+       * Studios group (HF-W3A A5). The live product sidebar is a flat list whose
+       * entries include 'Ads Studio', 'Marketing Studio', 'AI Influencer'
+       * (evidence: inspect-ads-studio.json links 11801/11815/11791 and
+       * inspect-ai-influencer-studio.json links 64/78/54 — same nav, same order).
+       * Grouping them under a "Studios" heading is the packet-ordered clone-side
+       * layout choice (disclosed in docs/wave-3a-worker-worklog.md).
+       */}
+      <div className="mt-4 px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        Studios
+      </div>
+      {link("/ads-studio", "Ads Studio", <Megaphone className="h-4 w-4" aria-hidden />)}
+      {link("/marketing-studio", "Marketing Studio", <Newspaper className="h-4 w-4" aria-hidden />)}
+      {link("/ai-influencer-studio", "AI Influencer", <UserRound className="h-4 w-4" aria-hidden />)}
 
       <div className="mt-4 px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
         My generations
@@ -129,6 +144,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: wallet } = useWallet(signedIn);
   const logout = useLogout();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const exploreActive = pathname === "/explore" || pathname.startsWith("/explore/");
 
   return (
     <div className="min-h-screen bg-background">
@@ -161,6 +178,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Sheet>
 
           <div className="ml-auto flex items-center gap-2">
+            {/*
+             * Explore topbar link (HF-W3A A5) → /explore, the model catalog surface.
+             * Evidence: 'Explore' is the first entry of the live product nav
+             * (inspect-ads-studio.json link node 11764; inspect-ai-influencer-studio.json
+             * link node 27). inspect-cinema-studio.json does not exist in the survey —
+             * cinema-studio topbar citation unavailable, disclosed in the worklog.
+             */}
+            <Link
+              href="/explore"
+              aria-current={exploreActive ? "page" : undefined}
+              className={cn(
+                "flex h-9 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
+                exploreActive
+                  ? "border-primary/60 bg-primary/10 text-foreground"
+                  : "border-border bg-card text-foreground/80 hover:bg-accent hover:text-foreground"
+              )}
+            >
+              <Compass className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Explore</span>
+              <span className="sr-only sm:hidden">Explore models</span>
+            </Link>
             {signedIn && (
               <Link
                 href="/pricing"
