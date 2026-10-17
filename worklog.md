@@ -114,3 +114,22 @@ Work Log:
 
 Stage Summary:
 - Wave 1 delivered: shell + auth/guest + Cinema Studio composer + projects/credits/paywall surface, evidence-parity API envelopes, 7/7 API contract tests, browser-verified e2e. Ready for station re-verification and wave-2 dispatch.
+
+---
+Task ID: HF-W2-merge
+Agent: TL station (main orchestrator, Z.ai Code)
+Task: Wave-2 harvest → clean-room certification → station merge (TL curation pass)
+
+Work Log:
+- COMPLETION: hf-w2 worker chat 26875c0b ("HF-W2 Generation Pipeline Order") delivered the full wave-2 scope; worker's own record preserved at docs/wave-2-worker-worklog.md (10 commits on its sandbox branch hf/wave-2-pipeline, all §3.6 gates green on the worker side).
+- SPARE DISPATCH NEUTRALIZED: backup chat b49aecc1 (packet inserted, queued, never admitted) deleted server-side to prevent duplicate wave-2 work after 26875c0b delivered.
+- PATH CORRUPTION FOUND + FIXED: the first TL harvest (12:37) was mangled — dynamic-route dirs (`[model]` → `odel]` display-mangle fed back into file paths), missing `jobs/[model]/publish`, incomplete fixtures. Full re-harvest via bracket-safe probe (scripts/bracket_probe.py + scripts/reharvest_w2.py): 152/152 paths, true `[model]`/`[id]`/`[folderId]` dirs verified present.
+- CLEAN-ROOM CERTIFICATION (/home/z/hf-w2-harvest2): bun install 827 pkgs; lint exit 0; tsc --noEmit exit 0; build exit 0 (24 routes, standalone); prisma db push ×2 idempotent ("already in sync"); seed complete (9 users/15 gens/12 pubs/3 contests); API tests 19/19 (97 expects) against the standalone prod server; E2E full loop 1/1 (24 expects: login → folder → §1a generate → poll done → My generations + feed publish → ledger exact); route sweep 200s (/, /community, /generate/all, /generate/trash, /pricing; auth-gated 401s on user APIs) — HF-W2 CERTIFIED.
+- GOTCHAS SOLVED: (a) Bash tool reaps process trees at call end — cert servers must launch via dfork_launch.py double-fork; (b) bun fetch resolves localhost → ::1 while server binds 127.0.0.1 — tests need TEST_BASE_URL=http://127.0.0.1:PORT; (c) OOM pressure killed an early dev-server attempt — standalone prod server is the memory-safe cert target.
+- STATION MERGE (branch hf/wave-2-pipeline from main @ 0bc467e): wave-2 tree overlaid wholesale (73 A / 43 D / 21 M). Wave-2 REPLACES the app core: custom JWT cookie auth chain (login/session/refresh/logout, §1d-faithful) supersedes wave-1 NextAuth; §1a-verbatim jobs API with [model] dynamic routes; folders CRUD + trash; community read-model (feed/trending/creators/contests); free-gens touring grants; per-model credit pools + ledger; Prisma schema superset (Generation gains modelVersion/jobSetType/dims/batch/inputImages/folder FK/publishedAt; + CreditPool, CreditLedger, FeedPublication, FreeGensGrant, Contest).
+- WAVE-1-ONLY SURFACES DROPPED (roadmap → wave-3): (studio)/favorites, (studio)/elements, quiz, wave-1 extras (folders/pinned, user/meta, onboarding, personal-promo, username*). They imported wave-1 libs replaced by the wave-2 core; wave-3 packet rebuilds them against the banked route-tree evidence. Wave-1's TL-owned pricing.ts superseded by wave-2 catalog.ts (per-model credit costs from captured evidence).
+- next.config.ts: ignoreBuildErrors REMOVED (honest build; tsc gate runs separately anyway).
+- Post-merge gates re-run in the station before main merge (see commit trail).
+
+Stage Summary:
+- Station carries the certified wave-2 core; auth/credits/jobs/community now evidence-faithful; wave-3 scope = remaining surfaces (favorites, elements, academy/quiz, notices UI polish, folders/pinned) + any §1 gaps against the 364-route truth.

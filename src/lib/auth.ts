@@ -1,71 +1,59 @@
-import type { DefaultSession, NextAuthOptions } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import CredentialsProvider from "next-auth/providers/credentials";
+/**
+ * Session helpers (§1d: JWT session via httpOnly cookie or Authorization: Bearer;
+ * stale tokens return 401 {"detail":"Invalid or expired token"} and the client retries once).
+ */
 import { db } from "@/lib/db";
-import { GUEST_EMAIL } from "@/lib/session";
+import { verifySession, signSession } from "@/lib/jwt";
+import type { User } from "@prisma/client";
 
-declare module "next-auth" {
-  interface Session {
-    user: { id?: string } & DefaultSession["user"];
+export const SESSION_COOKIE = "hf_session";
+
+function readCookie(cookieHeader: string | null, name: string): string | null {
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx === -1) continue;
+    if (part.slice(0, idx).trim() === name) return part.slice(idx + 1).trim();
   }
+  return null;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function tokenFromRequest(req: Request): string | null {
+  const auth = req.headers.get("authorization");
+  if (auth && auth.startsWith("Bearer ")) return auth.slice(7).trim();
+  return readCookie(req.headers.get("cookie"), SESSION_COOKIE);
+}
 
-/** NextAuth v4 options for HF Studio (dev-safe: no real credentials). */
-export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET ?? "hf-studio-dev-secret",
-  session: { strategy: "jwt" },
-  providers: [
-    // Google sign-in is enabled only when the env pair is configured.
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ? [
-          GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          }),
-        ]
-      : []),
-    CredentialsProvider({
-      name: "Guest",
-      credentials: {
-        email: { label: "Email", type: "text" },
-      },
-      async authorize(credentials) {
-        const raw = typeof credentials?.email === "string" ? credentials.email : "";
-        let email = raw.trim().toLowerCase();
-        if (!EMAIL_RE.test(email)) {
-          email = GUEST_EMAIL;
-        }
+export async function getSessionUser(req: Request): Promise<User | null> {
+  const token = tokenFromRequest(req);
+  if (!token) return null;
+  const claims = verifySession(token);
+  if (!claims) return null;
+  return db.user.findUnique({ where: { id: claims.sub } });
+}
 
-        const user = await db.user.upsert({
-          where: { email },
-          update: {},
-          create: { email, credits: 20, planTier: "free" },
-        });
+export function unauthorizedDetail(): { detail: string } {
+  return { detail: "Invalid or expired token" };
+}
 
-        return {
-          id: user.id,
-          name: user.username ?? email.split("@")[0],
-          email: user.email,
-        };
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.sub = user.id;
-        token.email = user.email ?? token.email;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.sub ?? session.user.id;
-        session.user.email = token.email ?? session.user.email;
-      }
-      return session;
-    },
-  },
-};
+export async function requireUser(req: Request): Promise<{ user: User } | { response: Response }> {
+  const user = await getSessionUser(req);
+  if (!user) {
+    return { response: Response.json(unauthorizedDetail(), { status: 401 }) };
+  }
+  return { user };
+}
+
+export function sessionCookieOptions() {
+  return {
+    name: SESSION_COOKIE,
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60,
+  };
+}
+
+export function issueSessionToken(user: User): string {
+  return signSession(user.id, `ws_${user.id}`);
+}

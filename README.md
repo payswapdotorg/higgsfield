@@ -1,98 +1,118 @@
-# HF Studio — Wave 1 Foundation
+# HF Studio — clean-room Higgsfield product clone (Wave 2)
 
-A clean-room clone of the higgsfield.ai **product** (the AI creative-suite app),
-wave 1 of 4: app shell, auth + guest mode, the Cinema Studio composer, and
-projects (folders) with a credits wallet model and paywall surface.
+Wave 2 of the clean-room product clone: the **generation pipeline**, **My generations**, and the
+**community feed**, built on a Next.js 16 / TypeScript / Tailwind 4 / shadcn/ui / Prisma + SQLite
+stack with TanStack Query and Zustand.
 
-- **Work order:** HF-W1 · **Branch:** `hf/wave-1-foundation`
-- **Stack:** Next.js 16 (App Router) · TypeScript strict · Tailwind CSS 4 ·
-  shadcn/ui (New York) · Lucide · Prisma + SQLite · TanStack Query · Zustand ·
-  next-auth v4 · sonner
+## What runs here
 
-## Setup
+| Surface | Route | Notes |
+|---|---|---|
+| Studio (create) | `/` | Model picker, prompt, aspect presets, resolution, batch, folder, `Generate {cost}` button (§1a) |
+| My generations | `/generate/all`, `/generate/folder/[folderId]`, `/generate/trash` | Folder cards with `recent_jobs_count`, status-chip result cards, soft-delete trash with count |
+| Community | `/community` (`?tab=generations\|contests\|creators\|originals\|projects`) | Public feed read-model, trending, creators, contests |
+| Pricing stub | `/pricing` | Plans from `PRICING_CONFIG` (wave-3 scope marker) |
+
+Demo sign-in: **Continue as demo creator** (seeded user with 1,000 wallet credits, 10 daily credits,
+a 2-credit `model:face_swap` pool and a 5-generation `nano_banana_2` touring grant — §1c anchors).
+
+## Generation pipeline (wave-2 core)
+
+- `POST /api/jobs/{model}` validates the §1a request body **verbatim** (strict zod schema — exact
+  field names, unknown keys rejected). Aspect presets drive width/height server-side:
+  `3:4 → 896×1200`, `16:9 → 1200×672`, `1:1 → 1024×1024` @1k (doubled @2k).
+- Cost comes from the `MODEL_CATALOG` constant (`nano-banana-2` = 2, `cinema-studio-4` = 80 — both
+  §1a evidence anchors; `wan-2-2-animate-faceswap` = 30, a disclosed clone-side choice).
+- Credits are spent **atomically with job creation** in one Prisma interactive transaction. Every
+  debit is a guarded compare-and-set (`updateMany` + balance condition), so concurrent submissions
+  cannot double-spend (covered by the concurrent ×2 test).
+- Burn order: **free-gens grant for the matching jobSetType → `model:<jobSetType>` → `daily` →
+  `wallet`** (§3.4 pins free-gens before wallet). Every debit writes a `CreditLedger` row.
+- An in-process worker (pluggable `ModelAdapter`) dequeues `queued → processing → done/failed`.
+  The mock adapter resolves after N ms (`MOCK_ADAPTER_MS`, default 1200, ±20% seeded jitter) with a
+  fixture asset chosen deterministically from the job seed (mulberry32 — no `Math.random` anywhere).
+  Failure injection: prompt containing `[fail]` forces failure; `MOCK_FAILURE_PCT` sets a seeded
+  rate. `MOCK_CHALLENGE_PCT` injects DataDome-modeled 429 challenges (§1a).
+- Client polling: TanStack Query, 2 s interval, `1.15^n` backoff capped at 10 s, stops on terminal
+  states (§3.2).
+- `apiFetch` wrapper (§1d): one transparent retry after `POST /api/auth/refresh` on 401; on 429/403
+  challenge → toast **“Something went wrong, please try again”** + one automatic retry (§1a).
+- Notices: `GET /api/notices?lang=en` returns the §1e body; jobs on `wan2_2_animate_faceswap`
+  carry the “Temporary Issues” warning badge (model chip + result cards).
+- Free-gens: `GET /api/user/free-gens/v2` returns the §1c touring shape (amount 5,
+  `nano_banana_2`, claimed flag; `remaining` is an additive key). All pools empty → 402 → the
+  **UPGRADE REQUIRED** modal.
+
+## API surface (evidence-shaped, snake_case)
+
+`/api/auth/{login,logout,session,refresh}` · `/api/jobs/{model}` (POST create; GET/DELETE by job id;
+`?purge=1` hard delete) · `/api/jobs/accessible` (`{"jobs":[…],"has_more":bool}`) ·
+`/api/jobs/{id}/restore` · `/api/jobs/{id}/publish` · `/api/folders` (+`/[id]`) ·
+`/api/trash/library/count` · `/api/user` · `/api/user/wallet` · `/api/user/free-gens/v2` ·
+`/api/user/features` · `/api/notices` · `/api/community/generations/feed` · `/api/community/trending`
+· `/api/community/discovery/creators` · `/api/community/discovery/header` · `/api/community/contests`.
+
+401 body is exactly `{"detail":"Invalid or expired token"}` (§1d).
+
+## Data model (Prisma + SQLite)
+
+`User`, `Folder` (“Project” in product language), `Generation` (the job: `modelVersion`,
+`jobSetType`, width/height, `batchSize`, `inputImages` JSON, `workspaceId`, `folderId`,
+`publishedAt`, `notices` JSON, soft-delete `deletedAt`), `CreditPool` (`wallet|daily|model:<slug>`),
+`CreditLedger`, `FreeGensGrant`, `FeedPublication`, `Contest`.
+
+Seed (`bun run db:seed`) is idempotent (upserts keyed by stable ids): demo user + pools + grant,
+1 folder with 3 done generations (one carrying the §1e notice), 8 creator users, 12 feed
+publications, 3 contests.
+
+## Commands
 
 ```bash
-bun install
-bun run db:push     # create/refresh the SQLite schema (idempotent)
-bun run db:seed     # seed users, projects, contests, credit txns (idempotent)
-bun run dev         # dev server on http://localhost:3000
+bun run dev        # dev server on :3000 (Turbopack)
+bun run db:push    # idempotent schema push (run twice for the receipt)
+bun run db:seed    # idempotent seed
+bun run lint       # eslint — 0 errors
+bunx tsc --noEmit  # EXIT 0
+bun run build      # production build (standalone)
+bun test tests/api.test.ts   # 19 API tests (needs a running server on :3000)
+bun test tests/e2e.test.ts   # full local loop (run with MOCK_ADAPTER_MS=50 on the server)
 ```
 
-Optional env (all have safe dev fallbacks — **no credentials are required**):
+E2E-at-50ms receipt recipe: stop dev, `bun run build`, then
+`DATABASE_URL=file:… MOCK_ADAPTER_MS=50 PORT=3000 HOSTNAME=0.0.0.0 node .next/standalone/server.js`,
+then run both test files against it.
 
-```bash
-DATABASE_URL=file:./db/custom.db          # default already in .env
-NEXTAUTH_SECRET=...                       # dev fallback: hf-studio-dev-secret
-GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=...  # enables real Google OAuth (off by default)
-```
+## Wave-2 scope & provenance
 
-## Quality gates (wave-1 receipts)
+Built strictly from the HF-W2 order's **inline §1 evidence** (live-captured 2026-10-17): the §1a
+generation POST body (verbatim field names, credit cost on the GENERATE button), §1b jobs-list
+shape, §1c wallet/user/touring/features bodies, §1d stale-token retry behavior, §1e
+notices/contests field names, §1f route family mapping (`/_private/generate/…` → `/generate/…`,
+`/(public)/community/_tabs/*` → `?tab=…`), §1g community endpoint inventory.
 
-```bash
-bun run lint               # ESLint — 0 errors
-bunx tsc --noEmit          # strict typecheck — exit 0
-bun run db:push            # run twice → idempotent
-bun run db:seed            # run twice → idempotent
-bun test tests/api.test.ts # 7/7 API contract tests against the running dev server
-```
+### Disclosures (clone-side choices & wave-1 stand-ins)
 
-`bun run build` is intentionally **not** run in this delivery sandbox (the dev
-server owns port 3000; the station re-verifies on its own hardware).
+1. The claimed wave-1 base merge was **absent** from the workspace (`main` = scaffold initial
+   commit). Wave 2 is self-contained; the wave-1 stand-ins it needed (app shell, wallet chip,
+   UPGRADE REQUIRED modal, auth session) were built as part of this wave.
+2. The `evidence/rea-2026-10-17/…` files referenced by the order were not present; only the inline
+   §1 bodies were used.
+3. Fixture images are AI-generated demo assets (`public/fixtures/gen-01..15.png`; bytes are
+   JPEG-encoded by the generator CLI despite the `.png` extension — browsers sniff the format).
+   Community feed values (views/likes/dates), contest values, and creator usernames are seeded
+   demo data — field names are verbatim §1e.
+4. `MODEL_CATALOG` slugs/costs beyond the evidence anchors (`nano-banana-2` = 2,
+   `cinema-studio-4` = 80) and the pricing page's Pro tier values are disclosed placeholder demo
+   values (the pricing digest body was not in the workspace).
+5. Determinism law: all generation outputs derive from `mulberry32(job.seed)` (no `Math.random`
+   in shipped code; verified by grep). Record bookkeeping fields (`startedAt/completedAt/
+   deletedAt/publishedAt`, ledger `createdAt`) use DB-level defaults / server-side `Date` — they
+   never influence outputs.
+6. The `/api/jobs/{segment}` route uses one dynamic slug (Next.js forbids two slug names per path
+   level): POST treats it as a model slug (§1a parity), other verbs as a job id. Folder
+   association rides on `?folder_id=` so the §1a body stays verbatim.
 
-## What's in wave 1
+## Wave 3+ (not in scope here)
 
-- **Studio shell** — left sidebar (Home, My generations, My elements, My
-  favorites, Community, Projects + New project, promo card), top bar (Explore,
-  Pricing with 55% OFF badge, credits chip, account chip / Log in). Dark
-  theme first; sidebar collapses to a drawer below `lg`.
-- **Cinema Studio composer** (`/generate`) — Image/Video/References tabs
-  (References `0/50` counter), prompt box with captured demo prompt, Film
-  setup panel (Camera / Color palette / Lighting — Auto), settings chips
-  (`Cinema Studio 4.0`, `1080p`, `16:9`, `5s`, `On`, `1/4`), GENERATE button
-  with live credit cost (default config prices at exactly **80** credits),
-  project picker popover ("My projects" / Create new project / Private
-  badges). Composer state persists (zustand persist → prompt survives
-  reload).
-- **Paywall** — credits < cost opens the UPGRADE REQUIRED modal: personal
-  promo code, 55% OFF, Monthly/Annual toggle, STARTER/PLUS plan cards,
-  "Skip this offer". Billing is a stub by design (wired in a later wave).
-- **Auth** — next-auth v4: Credentials "guest" provider (email-first modal
-  with demo Google/Apple/Microsoft buttons) + real Google provider only when
-  env vars exist. **Guest mode:** anonymous requests resolve to the seeded
-  guest user, so the whole app is browsable logged-out.
-- **Onboarding quiz** (`/quiz`) — 6 steps (verbatim use-case options from the
-  capture), deterministic username suggestion (hash-derived, e.g.
-  `hollowlemur1259`), terms checkbox, claim → pricing special-offer screen →
-  "Skip this offer" → `/generate`.
-- **Projects (folders)** — REST routes mirroring the captured
-  `POST /fnf/folders` body shape (`{name, access_mode, surface,
-  workspace_id}`) + accessible/pinned listings, PATCH pin/rename, DELETE.
-- **API** — snake_case envelopes matching the live-capture inventory:
-  `/api/user`, `/api/user/meta`, `/api/user/personal-promo`,
-  `/api/user/free-gens/v2`, `/api/user/username` (+ `-suggest`),
-  `/api/user/onboarding`, `/api/contests?size=`, `/api/generations`,
-  `/api/folders/*`.
-- **Data model** — User, Project, Generation (wave-1 model + queued rows; the
-  render pipeline itself is wave 2), Contest, CreditTxn (wallet ledger).
-- **Community** (`/community`) — contests grid from the seeded capture data.
-
-## Evidence provenance
-
-Shapes, labels, and copy mirror the live-app capture of 2026-10-17 (84-endpoint
-API inventory + authenticated DOM dumps): endpoint field names
-(`access_mode`, `recent_jobs_count`, `start_at`, `free_gens_remaining`, …),
-composer chrome ("BRING YOUR STORIES TO LIFE", chip labels, `0/50` references
-counter, GENERATE with embedded cost), the folders POST body, the contests
-response shape (incl. the `higgsfield-global-film-festival` record), and the
-onboarding quiz options. Credit pricing constants reproduce the captured
-"GENERATE 80" default. No third-party credentials, tokens, or network calls
-are included anywhere in this tree.
-
-## Wave roadmap
-
-1. **Wave 1 (this)** — shell, auth, composer, projects, credits/paywall.
-2. Wave 2 — generation pipeline (job queue, atomic credit spend, My
-   generations gallery, community feed).
-3. Wave 3 — wider product surface (Ads/Marketing Studios, model catalog,
-   contests detail).
-4. Wave 4 — hardening (rate limits, retries, observability, deployment).
+The remaining route-manifest surface (364 routes): settings/billing family, profile pages,
+originals/projects content, posts/publications detail, contests submission flow.
