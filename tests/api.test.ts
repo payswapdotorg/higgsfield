@@ -386,7 +386,7 @@ describe("HF-W5 settings + profile bodies — verbatim key sets", () => {
   test("GET /api/user/settings echoes the captured consent body exactly", async () => {
     const res = await fetch(`${BASE_URL}/api/user/settings`);
     expect(res.status).toBe(401); // guests rejected (§1d)
-    const jar = await login("hf-w5-test-settings@hf-test.local", "w5_settings_tester");
+    const jar = await login("hf-w2-test-w5-settings@hf-test.local", "w5_settings_tester");
     const ok = await authFetch(jar, "/api/user/settings");
     expect(ok.status).toBe(200);
     const body = (await ok.json()) as Record<string, unknown>;
@@ -415,7 +415,7 @@ describe("HF-W5 settings + profile bodies — verbatim key sets", () => {
   });
 
   test("GET /api/user/profile returns the captured profile key set", async () => {
-    const jar = await login("hf-w5-test-profile@hf-test.local", "w5_profile_tester");
+    const jar = await login("hf-w2-test-w5-profile@hf-test.local", "w5_profile_tester");
     const res = await authFetch(jar, "/api/user/profile");
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
@@ -449,7 +449,7 @@ describe("HF-W5 settings + profile bodies — verbatim key sets", () => {
   });
 
   test("GET /api/user carries the captured subscription-state keys (free-plan values)", async () => {
-    const jar = await login("hf-w5-test-sub@hf-test.local", "w5_sub_tester");
+    const jar = await login("hf-w2-test-w5-sub@hf-test.local", "w5_sub_tester");
     const res = await authFetch(jar, "/api/user");
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
