@@ -61,6 +61,12 @@ function backoffSecondsFor(consecutiveErrors: number): number {
 export function ensureWorker(): void {
   if (globalForWorker.__hfWorkerStarted) return;
   globalForWorker.__hfWorkerStarted = true;
+  // Lifecycle log (H4): every f-worker line shares the "[f-worker]" prefix — errors via
+  // console.error, lifecycle transitions via console.log — so `grep "\[f-worker\]"` is the
+  // single station-side surface for worker health.
+  console.log(
+    `[f-worker] started (tick=${TICK_INTERVAL_MS}ms, backoff<=${MAX_BACKOFF_SECONDS}s, maxAttempts=${MAX_ATTEMPTS})`
+  );
   const timer = setInterval(() => {
     void tick();
   }, TICK_INTERVAL_MS);
