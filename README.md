@@ -1,12 +1,12 @@
-# HF Studio — clean-room Higgsfield product clone (Waves 1–3 complete, Wave 4 hardened)
+# HF Studio — clean-room Higgsfield product clone (Waves 1–4 complete, Wave 5 account+profile surfaces)
 
 A working clone of the **higgsfield.ai product** (the AI-native creative suite — studios,
 generation pipeline, community, platform pages), reverse-engineered from live evidence and
 built wave-by-wave: wave 1 (app shell + auth + composer + projects) · wave 2 (generation
 pipeline + credits + community feed) · wave 3 (the wider product surface) · wave 4
 (production hardening: SQLite contention fix, job retries, rate limiting, health probe,
-verify battery). Next.js 16 App Router · TypeScript · Tailwind 4 · shadcn/ui · Prisma +
-SQLite · TanStack Query · Zustand.
+verify battery) · wave 5 (account settings + public profiles). Next.js 16 App Router ·
+TypeScript · Tailwind 4 · shadcn/ui · Prisma + SQLite · TanStack Query · Zustand.
 
 ## What runs here
 
@@ -29,9 +29,16 @@ SQLite · TanStack Query · Zustand.
 | Platform | `/api-docs` (Open Platform), `/mcp` + `/mcp/[slug]`, `/academy` | `inspect-api.json`, `inspect-mcp.json`, `inspect-academy.json` |
 | Contests | `/contests/[slug]` + `/contests/[slug]/submissions` | `inspect-contests.json` + bodies digest |
 
-Route parity (wave-3 exit gate): **40 implemented / 0 missing / 0 extra / 291 live routes
-explicitly deferred in 16 documented groups** — see `docs/route-parity-report.md`; the
-deferred groups are the prioritized wave-4+ backlog.
+**Account + profile surfaces (wave 5):**
+
+| Family | Routes | Evidence |
+|---|---|---|
+| Account settings | `/me/settings` + 13 children (subscription, billing, usage, promo, members, organization, sub-workspaces, unlimited-access-history, gift, referrals, cancel, onboarding, sessions) | bodies digest (`settings` / `profile` / `user` / `wallet` / `pricing-config` v45.0.0); layout is a disclosed clone-side choice (settings surface never captured) |
+| Public profiles | `/profile/[username]` + 7 children (generations, projects, projects/[projectSlug], blogs, blogs/[slug], achievements, ranking) | bodies digest `profile` body verbatim; generations from the community read-model; the uncaptured tabs ship as honest shells |
+
+Route parity (wave-3 exit gate + wave-5 extension): **62 implemented / 0 missing / 0 extra /
+269 live routes explicitly deferred in 14 documented groups** — see
+`docs/route-parity-report.md`; the deferred groups are the prioritized backlog.
 
 Demo sign-in: **Continue as demo creator** (seeded user with 1,000 wallet credits, 10 daily
 credits, a `model:face_swap` pool and a 5-generation `nano_banana_2` touring grant — §1c
@@ -124,7 +131,7 @@ evidence) it is labeled additive (e.g. free-gens `remaining`, the job `attempt` 
 Known 404 captures (`inspect-projects/settings/video.json`) are never used as ground truth.
 Per-wave worker worklogs in `docs/` carry a DISCLOSURES section listing every stub, mapping
 and clone-side choice; the station re-verifies each claim before merge. Deferred surfaces
-(291 routes) are documented, not faked — see `docs/route-parity-report.md`.
+(269 routes) are documented, not faked — see `docs/route-parity-report.md`.
 
 ## Scope & provenance
 
