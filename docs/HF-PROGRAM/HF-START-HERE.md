@@ -65,3 +65,37 @@ Assets, Enterprise.
 - `docs/HF-PROGRAM/` — this file, ROADMAP, WORK-REGISTRY (worker records)
 - `evidence/` — the survey dossier (network capture, DOM dumps, bundle maps)
 - `src/` — the clone app (created by wave 1)
+
+
+## Evidence index (2026-10-17 REA survey — read before building any wave)
+
+- `evidence/rea-2026-10-17/README.md` — the survey analysis: generation POST
+  shape, auth chain (Clerk JWT = fnf Bearer), folder model verbatim, DataDome
+  wall (do not reproduce), route truth, wallet/free-gens/user bodies.
+- `evidence/rea-2026-10-17/route-preload-manifest.json` — **the complete live
+  route tree (364 routes)**: `/_private/*` app shell (generate/$mode/
+  $modelVersion, ai/image, ai/video, ads-studio, canvas, character, edit,
+  flow/*, layers, lipsync-studio, marketing-studio, me/settings/*, moodboard,
+  profile/$username/*, supercomputer/*, upscale…), `(public)` tree (auth,
+  community/_tabs/*, contests, pricing, effects, mcp, start/*), academy,
+  mobile. THIS is the product architecture map.
+- `evidence/rea-2026-10-17/api-bodies-digest.json` — verbatim bodies: user
+  (per-model credit pools: soul/wan2_5/face_swap/qwen_camera_control…),
+  wallet, touring free-gens, pricing-config v45.0.0, notices, contests,
+  profile, settings, features.
+- `evidence/rea-2026-10-17/surfaces/inspect-*.json` — 17 surface DOM/a11y
+  captures (the /api surface carries the full MODEL CATALOG: bytedance
+  Seedance 2.5/2.0, kling 3.0 (10 modes), higgsfield Genjutsu/Soul 2/Soul
+  Standard/Ads Studio/Cinema Studio 4.0, alibaba Wan 3.0 Prime/2.7/Happy
+  Horse/Qwen Image 3/Z-Image Turbo, minimax MiniMax H3, lightricks LTX 2.5
+  Fast/Pro, xai Grok Imagine 2.0/Video 1.5, ideogram 4.0, recraft 4.1).
+- `evidence/rea-2026-10-17/bundle-ai-image.json` — per-route chunk analysis
+  (each TanStack route lazy-loads its own chunks — REA `analyze-web-bundle`
+  per surface accumulates the full app source).
+
+## Tooling (station-side, for evidence refresh)
+
+- `rea` CLI v6.5.0 (npm -g rea-agents) — passive CDP observation of the
+  operator Chrome (session lives in the durable browser profile).
+- Network daemons: `replay2/scripts/local/hf_net_capture{,2}.py` (request
+  headers via requestWillBeSentExtraInfo + response bodies → /tmp/hf/*.jsonl).
