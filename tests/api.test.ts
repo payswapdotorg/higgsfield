@@ -379,6 +379,105 @@ describe("trash count — soft delete / restore / purge", () => {
   });
 });
 
+/// ── HF-W5 settings/profile surface — evidence-verbatim body shapes ──────────
+/// (evidence/rea-2026-10-17/api-bodies-digest.json → settings / profile; the
+/// net capture shows GET-only rows, so no mutation endpoints exist to test).
+describe("HF-W5 settings + profile bodies — verbatim key sets", () => {
+  test("GET /api/user/settings echoes the captured consent body exactly", async () => {
+    const res = await fetch(`${BASE_URL}/api/user/settings`);
+    expect(res.status).toBe(401); // guests rejected (§1d)
+    const jar = await login("hf-w5-test-settings@hf-test.local", "w5_settings_tester");
+    const ok = await authFetch(jar, "/api/user/settings");
+    expect(ok.status).toBe(200);
+    const body = (await ok.json()) as Record<string, unknown>;
+    expect(Object.keys(body).sort()).toEqual(
+      [
+        "media_consent",
+        "media_consented_at",
+        "audio_consent",
+        "audio_consented_at",
+        "unlimited_settings",
+        "has_image_auto",
+        "character_sheets_consent",
+        "character_sheets_consented_at",
+        "ai_influencer_consent",
+        "ai_influencer_consented_at",
+        "supercomputer_llm_consent",
+        "supercomputer_llm_consented_at",
+      ].sort()
+    );
+    // Fresh-account defaults match the captured body values verbatim.
+    expect(body["media_consent"]).toBe(false);
+    expect(body["audio_consent"]).toBeNull();
+    expect(body["unlimited_settings"]).toBeNull();
+    expect(body["has_image_auto"]).toBe(true);
+    expect(body["supercomputer_llm_consent"]).toBe(false);
+  });
+
+  test("GET /api/user/profile returns the captured profile key set", async () => {
+    const jar = await login("hf-w5-test-profile@hf-test.local", "w5_profile_tester");
+    const res = await authFetch(jar, "/api/user/profile");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(Object.keys(body).sort()).toEqual(
+      [
+        "username",
+        "avatar_url",
+        "background_image_url",
+        "bio",
+        "headline",
+        "instagram_handle",
+        "twitter_handle",
+        "youtube_handle",
+        "tiktok_handle",
+        "discord_handle",
+        "linkedin_handle",
+        "show_full_name",
+        "full_name",
+        "location",
+        "badge",
+        "badges",
+        "total_projects_views",
+        "total_projects_likes",
+        "created_at",
+        "account_created_at",
+        "updated_at",
+      ].sort()
+    );
+    expect(body["badges"]).toEqual([]);
+    expect(body["show_full_name"]).toBe(false);
+  });
+
+  test("GET /api/user carries the captured subscription-state keys (free-plan values)", async () => {
+    const jar = await login("hf-w5-test-sub@hf-test.local", "w5_sub_tester");
+    const res = await authFetch(jar, "/api/user");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body["plan_type"]).toBe("free");
+    expect(body["billing_period"]).toBeNull();
+    expect(body["is_cancel_inited"]).toBe(false);
+    expect(body["promo_state"]).toBe("inactive");
+    expect(body["cohort"]).toBe("tier_1");
+    expect(body["workspace_type"]).toBe("private");
+    expect(body["workspace_role"]).toBe("owner");
+  });
+
+  test("GET /api/profile/[username] serves seeded users and 404s unknowns", async () => {
+    const seeded = await fetch(`${BASE_URL}/api/profile/demo_creator`);
+    expect(seeded.status).toBe(200);
+    const body = (await seeded.json()) as Record<string, unknown>;
+    expect(body["username"]).toBe("demo_creator");
+    // Captured-operator fixture renders the exact captured shape.
+    const operator = await fetch(`${BASE_URL}/api/profile/radiatingcapybara1609`);
+    expect(operator.status).toBe(200);
+    const opBody = (await operator.json()) as Record<string, unknown>;
+    expect(opBody["full_name"]).toBe("yaslen Catty");
+    expect(opBody["show_full_name"]).toBe(false);
+    const missing = await fetch(`${BASE_URL}/api/profile/no-such-user-w5`);
+    expect(missing.status).toBe(404);
+  });
+});
+
 describe("§1d/§1a client retry behavior (unit — pure apiFetch)", () => {
   test("401 → refresh + exactly one retry", async () => {
     let calls: Array<[string, string | undefined]> = [];
