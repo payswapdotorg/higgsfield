@@ -599,6 +599,9 @@ function SidebarMenuBadge({
   )
 }
 
+// Deterministic skeleton width counter (module-level, cycles 0–4).
+let skeletonWidthCounter = 0
+
 function SidebarMenuSkeleton({
   className,
   showIcon = false,
@@ -606,9 +609,10 @@ function SidebarMenuSkeleton({
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
 }) {
-  // Random width between 50 to 90%.
+  // Deterministic width cycle (50–90%) — no Math.random (determinism law).
   const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
+    const index = skeletonWidthCounter++ % 5
+    return `${[50, 60, 70, 80, 90][index]}%`
   }, [])
 
   return (

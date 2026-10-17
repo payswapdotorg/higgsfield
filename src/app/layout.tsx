@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Providers } from "@/components/providers";
+import { Providers } from "./providers";
+import { AppShell } from "@/components/app-shell";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,16 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HF Studio — Cinema Studio",
+  title: "HF Studio — AI generation workspace",
   description:
-    "AI creative suite for cinematic image and video generation",
-  keywords: [
-    "HF Studio",
-    "Cinema Studio",
-    "AI video",
-    "AI image",
-    "generative AI",
-  ],
+    "Clean-room Higgsfield product clone (wave 2): generation pipeline, My generations, and community feed.",
 };
 
 export default function RootLayout({
@@ -32,11 +26,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <Providers>{children}</Providers>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}>
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
       </body>
     </html>
   );
