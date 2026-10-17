@@ -35,9 +35,11 @@ import type {
  *
  * Disclosures (docs/wave-3c-worker-worklog.md): the submissions gallery
  * (live route /(public)/contests/$contestSlug/submissions/…) was NOT captured
- * → rendered as a visibly scoped shell, not implemented; prize formatting
- * uses the live '$1,000,000' comma style (6912); status chips map the digest
- * statuses onto the captured surface labels ('Winners announced' when a
+ * → the route family ships as a visibly scoped shell at
+ * /contests/[slug]/submissions (HF-W3C C6 parity-gap fix; the disclosure
+ * card below remains, 'View submissions' now links to the shell); prize
+ * formatting uses the live '$1,000,000' comma style (6912); status chips map
+ * the digest statuses onto the captured surface labels ('Winners announced' when a
  * winner exists, else 'Contest has ended' for finished); the live 'Jury
  * review' phase chip is a live-UI phase not present in the digest body and is
  * therefore not rendered.
@@ -291,12 +293,15 @@ export default async function ContestDetailPage({
               <code className="rounded bg-muted px-1 py-0.5 text-xs">submissions_count</code>). No
               submission cards are invented here.
             </p>
-            {/* ev: 'View submissions' 6918 — uncaptured target → scoped */}
-            <span title="Submissions gallery not captured" className="block">
-              <Button variant="secondary" size="sm" disabled>
+            {/* ev: 'View submissions' 6918 — its target route family now
+                EXISTS as the routed shell /contests/[slug]/submissions
+                (HF-W3C C6 parity-gap fix); the uncaptured-gallery disclosure
+                lives on that page. */}
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/contests/${contest.slug}/submissions`}>
                 View submissions
-              </Button>
-            </span>
+              </Link>
+            </Button>
           </CardContent>
         </Card>
       </section>
