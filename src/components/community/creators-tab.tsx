@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { RotateCcw, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -79,17 +80,29 @@ export function CreatorsTab() {
           className="flex flex-col items-center gap-3 rounded-xl border border-border bg-card p-6 text-center transition-colors hover:border-foreground/20"
           aria-label={`Creator @${creator.username}`}
         >
-          <Avatar className="h-16 w-16">
-            {creator.avatar_url && <AvatarImage src={creator.avatar_url} alt="" />}
-            <AvatarFallback className="text-base font-semibold uppercase">
-              {initialsOf(creator.display_name || creator.username)}
-            </AvatarFallback>
-          </Avatar>
+          {/*
+            HF-W5: the avatar + name block links to the creator's public profile
+            (/profile/[username] — route family /_private/profile/$username,
+            route-preload-manifest.json). The Follow button stays a sibling
+            (never nested inside the link — a11y).
+          */}
+          <Link
+            href={`/profile/${creator.username}`}
+            className="flex flex-col items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card rounded-lg"
+            aria-label={`View @${creator.username} profile`}
+          >
+            <Avatar className="h-16 w-16">
+              {creator.avatar_url && <AvatarImage src={creator.avatar_url} alt="" />}
+              <AvatarFallback className="text-base font-semibold uppercase">
+                {initialsOf(creator.display_name || creator.username)}
+              </AvatarFallback>
+            </Avatar>
 
-          <div className="min-w-0">
-            <p className="truncate font-medium">{creator.display_name}</p>
-            <p className="truncate text-xs text-muted-foreground">@{creator.username}</p>
-          </div>
+            <div className="min-w-0">
+              <p className="truncate font-medium">{creator.display_name}</p>
+              <p className="truncate text-xs text-muted-foreground">@{creator.username}</p>
+            </div>
+          </Link>
 
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span>
@@ -107,14 +120,19 @@ export function CreatorsTab() {
             </span>
           </div>
 
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-auto w-full"
-            onClick={() => toast.success(`Following @${creator.username} (demo)`)}
-          >
-            Follow
-          </Button>
+          <div className="mt-auto flex w-full items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="flex-1"
+              onClick={() => toast.success(`Following @${creator.username} (demo)`)}
+            >
+              Follow
+            </Button>
+            <Button asChild variant="ghost" size="sm" aria-label={`Open @${creator.username} profile`}>
+              <Link href={`/profile/${creator.username}`}>Profile</Link>
+            </Button>
+          </div>
         </article>
       ))}
     </div>

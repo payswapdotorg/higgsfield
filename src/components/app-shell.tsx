@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Sparkles, Users, LayoutGrid, Folder as FolderIcon, Trash2, CreditCard, Menu, Zap, LogOut, Clapperboard, Megaphone, Newspaper, UserRound, Compass, Wand2, LayoutDashboard, Pencil, Music, FolderOpen, Braces, Plug, GraduationCap, Trophy } from "lucide-react";
+import { Sparkles, Users, LayoutGrid, Folder as FolderIcon, Trash2, CreditCard, Menu, Zap, LogOut, Clapperboard, Megaphone, Newspaper, UserRound, Compass, Wand2, LayoutDashboard, Pencil, Music, FolderOpen, Braces, Plug, GraduationCap, Trophy, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -270,6 +270,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <span className="text-xs font-normal text-muted-foreground">{session.user.email}</span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {/*
+                    HF-W5: account-menu Settings item → /me/settings (the
+                    /_private/me/settings route family, route-preload-manifest.json).
+                    The live account-menu button is the avatar trigger above
+                    (this file, ~line 259); the settings entry itself is the
+                    clone-side wiring of the captured route family.
+                  */}
+                  <DropdownMenuItem asChild>
+                    <Link href="/me/settings" className="cursor-pointer">
+                      <Settings className="mr-2 h-4 w-4" aria-hidden /> Settings
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => void logout()} className="cursor-pointer">
                     <LogOut className="mr-2 h-4 w-4" aria-hidden /> Sign out
                   </DropdownMenuItem>
