@@ -4,510 +4,587 @@
   "url": "https://fnf-api-gw.higgsfield.ai/fnf-community/generations/feed?limit=50",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf-notification/notifications?limit=20",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf-notification/notifications/stream",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf-score/v1/season",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/access",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/affiliate/application",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/banner/settings",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/business-unlim/state",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": true
+  "respBody": "{\"held_offer\":null,\"verification\":{\"state\":\"not_required\",\"can_act\":true,\"attempts_used\":0,\"max_attempts\":2,\"remaining_attempts\":2,\"sent_to_masked\":null,\"verified_domains\":[],\"covered_domain\":null,\"employee_count_options\":[\"1-10\",\"11-50\",\"51-200\",\"201-500\",\"501-1000\",\"1000+\"],\"last_rejection_reason\":null},\"window\":null,\"plan_cards\":{},\"pricing_banner\":{\"show\":false,\"duration_days\":7,\"requires_business_verification\":false,\"offers\":[]},\"promo\":null}"
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/card-verification/status",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/community/discovery/creators",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/community/discovery/header",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/contest-participations",
+  "status": 200,
+  "reqBody": null,
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/contest-participations/deadline-announcement?contest_key=ai_film_festival",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/contest-participations/shortlist-announcement?contest_key=ai_film_festival",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/contests?size=50",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/datetime-settings",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/feature",
+  "status": 200,
+  "reqBody": null,
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/feedback/forms/pending?feature=cinema_studio",
+  "status": 200,
+  "reqBody": null,
+  "respBody": "{\"form\":null}"
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders/7af53192-5878-4bb0-a317-289d63bd592f",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders/7af53192-5878-4bb0-a317-289d63bd592f/children?size=1",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders/accessible?size=50&surface=contests",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders/pinned?recent_jobs_count=4",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/free-trial/status",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/gifts?size=20&type=inbound&activated=false",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/gifts/packages",
+  "status": 200,
+  "reqBody": null,
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/job-sets/costs",
+  "status": 200,
+  "reqBody": null,
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/paid-concurrency-ab",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/project-publications/trending?limit=32&sort=most_viewed",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/reference-elements/voices?size=33",
+  "status": 200,
+  "reqBody": null,
+  "respBody": "{\"user_cursor\":null,\"preset_cursor\":32,\"has_more\":true,\"items\":[{\"id\":\"e2a2d2e6-9ed2-59cd-82af-feaa27f8a678\",\"name\":\"Grady\",\"gender\":\"male\",\"age\":\"middle_aged\",\"source\":\"https://d1xarpci4ikg0w.cloudfront.net/audio_voice/e2a2d2e6-9ed2-59cd-82af-feaa27f8a678/preview-c07e730034d0926d.mp3\",\"thumbnail_url\":\"https://d1xarpci4ikg0w.cloudfront.net/audio_voice/e2a2d2e6-9ed2-59cd-82af-feaa27f8a678/thumbnail-42a7c60501e92f87.webp\",\"waveform_url\":\"https://d1xarpci4ikg0w.cloudfront.net/waveform/3e6474b7-1c47-4ad7-b773-a735babf17ad.json\",\"type\":\"preset\",\"supported_models\":[\"elevenlabs\",\"minimax\",\"seed_speech\"]},{\"id\":\"731b4ffe-e95e-59f4-8c00-81608936091f\",\"name\":\"Ainsley\",\"gender\":\"female\",\"age\":\"young\",\"source\":\"https://d1xarpci4ikg0w.cloudfront.net/audio_voice/731b4ffe-e95e-59f4-8c00-81608936091f/preview-37d345ad8f2edf91.mp3\",\"thumbnail_url\":\"https://d1xarpci4ikg0w.cloudfront.net/audio_voice/731b4ff"
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/referral-campaigns",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/referral-campaigns/referee",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/referral-campaigns/state?page=1&page_size=25",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/seedance-2-5-retention-offer",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/subscriptions/bundle/unlim-catalog",
+  "status": 200,
+  "reqBody": null,
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/subscriptions/v2/plans?plan_set_key=default&with_localization=true",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/two-day-offer",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/unlim-bundle-modal",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": true
+  "respBody": "{\"should_show\":false}"
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/upgrade-nudges?workspace_id=b7cc5409-1ee6-4fb7-9fc6-0d47186940e1",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/credit-package-chase",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/credit-package-discount",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/features",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/free-gens/v2",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/meta",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/offers",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/personal-promo",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/personal-promo/tasks",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/profile",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/user/settings",
+  "status": 200,
+  "reqBody": null,
+  "respBody": "{\"media_consent\":false,\"media_consented_at\":null,\"audio_consent\":null,\"audio_consented_at\":null,\"unlimited_settings\":null,\"has_image_auto\":true,\"character_sheets_consent\":false,\"character_sheets_consented_at\":null,\"ai_influencer_consent\":false,\"ai_influencer_consented_at\":null,\"supercomputer_llm_consent\":false,\"supercomputer_llm_consented_at\":null}"
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/v2/auto-top-ups/settings",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/v2/quizzes/user",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/v2/reference-elements/picker?size=100&author_user_ids=user_3KoMNbqmQxPsgEUAIYtm4OCCuTV&media=any",
+  "status": 200,
+  "reqBody": null,
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/v2/reference-elements/pinned?media=any",
+  "status": 200,
+  "reqBody": null,
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/workspace-call",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/workspaces",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
+ },
+ {
+  "method": "GET",
+  "url": "https://fnf-api-gw.higgsfield.ai/fnf/workspaces/accessible",
+  "status": 200,
+  "reqBody": null,
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/workspaces/details",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/workspaces/notice",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/workspaces/settings",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/workspaces/unlim-activations",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/workspaces/wallet",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://higgsfield.ai/_clerk/npm/@clerk/clerk-js@6.32.1/dist/clerk.browser.js",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://higgsfield.ai/_clerk/v1/client?__clerk_api_version=2026-05-12&_clerk_js_version=6.32.1",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://higgsfield.ai/_clerk/v1/environment?__clerk_api_version=2026-05-12&_clerk_js_version=6.32.1",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://higgsfield.ai/_serverFn/4dd92214ea1fcdb782328d2057058320672b45b67832bc72ff3bc57d1773cd66",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://higgsfield.ai/_serverFn/c5ca3198e22cedb196124a1f3a1d928da3d452b49dbcd54e9625d07ce4307ab9?payload=%7B%22t%22%3A%7B%22t%22%3A10%2C%22i%22%3A0%2C%22p%22%3A%7B%22k%22%3A%5B%22data%22%5D%2C%22v%22%3A%5B%7B%22t%22%3A10%2C%22i%22%3A1%2C%22p%22%3A%7B%22k%22%3A%5B%22locale%22%2C%22page%22%5D%2C%22v%22%3A%5B%7B%22t%22%3A1%2C%22s%22%3A%22en%22%7D%2C%7B%22t%22%3A1%2C%22s%22%3A%22explore%22%7D%5D%7D%2C%22o%22%3A0%7D%5D%7D%2C%22o%22%3A0%7D%2C%22f%22%3A127%2C%22m%22%3A%5B%5D%7D",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "GET",
   "url": "https://higgsfield.ai/fnf-community/generations/feed?limit=3",
   "status": 404,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf-community/generations/feed?limit=50",
   "status": 204,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf-notification/notifications/stream",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/card-verification/status",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/community/discovery/creators",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/community/discovery/header",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/contests?size=50",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders/7af53192-5878-4bb0-a317-289d63bd592f",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders/7af53192-5878-4bb0-a317-289d63bd592f/children?size=1",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders/accessible?size=40&surface=cinematic_studio&surface=contests&only_unpinned=true&sort_by=name&recent_jobs_count=4",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders/pinned?recent_jobs_count=4",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "OPTIONS",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/project-publications/trending?limit=32&sort=most_viewed",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "POST",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/folders",
   "status": 200,
   "reqBody": "{\"name\":\"New project\",\"access_mode\":\"private\",\"surface\":\"cinematic_studio\",\"workspace_id\":null}",
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "POST",
   "url": "https://fnf-api-gw.higgsfield.ai/fnf/workspaces/context",
   "status": 200,
   "reqBody": "{\"workspace_id\":\"b7cc5409-1ee6-4fb7-9fc6-0d47186940e1\"}",
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "POST",
   "url": "https://higgsfield.ai/_clerk/v1/client/sessions/sess_3KoMy3Wc4VOZfm63TY93WKwnwoq/tokens?__clerk_api_version=2026-05-12&_clerk_js_version=6.32.1",
   "status": 200,
-  "reqBody": "organization_id=&tab_state=focused&token=eyJhbGciOiJSUzI1NiIsImtpZCI6Imluc18ydW9tNzA0cXE5M2twYnpWTGVRV1AybHlSaDciLCJ0eXAiOiJKV1QiLCJvaWF0IjoxNzkyMjE5OTIxLCJjYXQiOiJjbF9CN2Q0UEQxMTFBQUEifQ.eyJhenAiOiJodHRwczovL2hpZ2dzZmllbGQuYWkiLCJlbWFpbCI6Inlhc2xlbmNhdHR5QGdtYWlsLmNvbSIsImV4cCI6MTc5MjIyMDAyNCwiZnVsbF9uYW1lIjoieWFzbGVuIENhdHR5IiwiZnZhIjpbNCwtMV0sImlhdCI6MTc5MjIxOTk2NCwiaXNzIjoiaHR0cHM6Ly9oaWdnc2ZpZWxkLmFpL19jbGVyayIsImp0aSI6ImEwYTczYmI3NjczNmE3NjEyYjU0IiwibmJmIjoxNzkyMjE5OTU0LCJzaWQiOiJzZXNzXzNLb015M1djNFZPWmZtNjNUWTkzV0t3bndvcSIsInN0cyI6ImFjdGl2ZSIsInN1YiI6InVzZXJfM0tvTU5icW1ReFBzZ0VVQUlZdG00T0NDdVRWIiwid29ya3NwYWNlX2lkIjoiYjdjYzU0MDktMWVlNi00ZmI3LTlmYzYtMGQ0NzE4Njk0MGUxIn0.OtkKeh6-d-HdZvJrq5INYFyBYwpD6k8KF1aqaqzAaSPLpiTv4_TyLYqQRVW2XwtQzW7bFGHAMW65qLVX5E4mNMzdxEF84LkkSKQbzs2hYcqpedj3VZOEsW9MRUDUVEix6eEznIpOT5keELjMRWUdYR87vwsPVVLiTQ3ycNvOP2fgrU4bq-k-nOqxt_LBoHFRvsYWbvw9aMpEgWR-NfYNV1Oi4lkBXMyzMHD-E8guYL9aqR6P1wz8JJ1nLT_QqwfkY9QhbxuUYbozVKlFDRjtv79mXqxAYX4hiCP0paalLVgIrnulVuGt0LCXdsUGr-Uee5w9mtxXVxAgwWH1zqWlzQ",
-  "hasRespBody": false
+  "reqBody": "organization_id=&tab_state=focused&token=eyJhbGciOiJSUzI1NiIsImtpZCI6Imluc18ydW9tNzA0cXE5M2twYnpWTGVRV1AybHlSaDciLCJ0eXAiOiJKV1QiLCJvaWF0IjoxNzkyMjE5OTIxLCJjYXQiOiJjbF9CN2Q0UEQxMTFBQUEifQ.eyJhenAiOiJodHRwczovL2hpZ2dzZmllbGQuYWkiLCJlbWFpbCI6Inlhc2xlbmNhdHR5QGdtYWlsLmNvbSIsImV4cCI6MTc5MjIyMDAyNCwiZnVsbF9uYW1lIjoieWFzbGVuIENhdHR5IiwiZnZhIjpbNCwtMV0sImlhdCI6MTc5MjIxOTk2NCwiaXNzIjoiaHR0cHM6Ly9oaWdnc2ZpZWxkLmFpL19jbGVyayIsImp0aSI6ImEwYTczYmI3NjczNmE3NjEyYjU0IiwibmJmIjoxNzkyMjE5OTU0LCJzaWQiOiJzZXNzXzNLb015M1djNFZPWmZtNjNUWTkzV0t3bndvcSIsInN0cyI6ImFjdGl2ZSIsInN1YiI6InVzZXJfM0tvTU5icW1ReFBzZ0VVQUlZdG00",
+  "respBody": null
  },
  {
   "method": "POST",
   "url": "https://higgsfield.ai/_serverFn/c06cd72ba540cada1dda7c6dcaa08938c1b8bf47a0a3e316515a817231b843d7",
   "status": 200,
   "reqBody": null,
-  "hasRespBody": false
+  "respBody": null
  },
  {
   "method": "POST",
   "url": "https://higgsfield.ai/_serverFn/dd4d67fd78e8fe0e12287a2d4b1069885417efa403ad572bdd19c8af122c4951",
   "status": 200,
   "reqBody": "{\"t\":{\"t\":10,\"i\":0,\"p\":{\"k\":[\"data\"],\"v\":[{\"t\":10,\"i\":1,\"p\":{\"k\":[\"flag\"],\"v\":[{\"t\":1,\"s\":\"f_1b55b6ca\"}]},\"o\":0}]},\"o\":0},\"f\":127,\"m\":[]}",
-  "hasRespBody": false
+  "respBody": null
  }
 ]
