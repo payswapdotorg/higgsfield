@@ -126,3 +126,32 @@ Nano Banana Pro, GPT Image, Seedream, FLUX, Genjutsu, Kling, Seedance, Soul ID.
 - Folder CRUD from §3 verbatim shapes.
 - Auth: NextAuth JWT → own Bearer scheme; replicate the 401-retry behavior.
 - Do NOT attempt DataDome bypass — out of scope for the clone.
+
+## Surface sweep addendum (wave-3 DOM specs)
+
+`surfaces/inspect-*.json` — REA `inspect-web-page` (a11y text + DOM + storage +
+resources) per surface, settled ~11s post-nav:
+
+| surface | landed | DOM nodes | a11y nodes | notes |
+|---|---|---|---|---|
+| /generate | /generate | 2943 | 617 | Cinema Studio 4.0 composer (see root README) |
+| /ai-image | /ai/image | — | — | studio; bundle analysis in bundle-ai-image.json |
+| /video | 404 shell | 884 | 251 | NOT a route (404 + upsell banner) |
+| /audio | /audio | 2348 | 346 | AI Voice Over & Translation landing |
+| /community | /community | 3242 | 969 | feed |
+| /contests | /community/contests | 2246 | 839 | nested under community |
+| /projects | 404 shell | 881 | 251 | NOT a route |
+| /settings | 404 shell | 881 | 251 | NOT a route (settings lives in-app) |
+| /ads-studio | /ads-studio | 1547 | 377 | real surface |
+| /edit | /edit | 1449 | 455 | real surface |
+| /effects | /effects | 2456 | 1235 | real surface, rich gallery |
+| /canvas | /canvas | 1482 | 354 | real surface |
+| /academy | /academy | 2891 | 1152 | content pages |
+| /ai-influencer-studio | same | 2456 | 813 | real surface |
+| /marketing-studio | same | 3018 | 513 | real surface |
+| /mcp | /mcp | 2474 | 1476 | MCP platform docs |
+| /api | /api | 3827 | 2577 | API docs surface, 178 resources |
+
+404-shell surfaces carry the persistent upsell banner
+("Discount expires in …h …m …s — Nano Banana Pro & 2 UNLIMITED on Ultra.
+Kling 3.0 Unlimited. Personal 55% OFF").
