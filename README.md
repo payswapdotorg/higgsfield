@@ -1,118 +1,135 @@
-# HF Studio — clean-room Higgsfield product clone (Wave 2)
+# HF Studio — clean-room Higgsfield product clone (Waves 1–3 complete, Wave 4 hardened)
 
-Wave 2 of the clean-room product clone: the **generation pipeline**, **My generations**, and the
-**community feed**, built on a Next.js 16 / TypeScript / Tailwind 4 / shadcn/ui / Prisma + SQLite
-stack with TanStack Query and Zustand.
+A working clone of the **higgsfield.ai product** (the AI-native creative suite — studios,
+generation pipeline, community, platform pages), reverse-engineered from live evidence and
+built wave-by-wave: wave 1 (app shell + auth + composer + projects) · wave 2 (generation
+pipeline + credits + community feed) · wave 3 (the wider product surface) · wave 4
+(production hardening: SQLite contention fix, job retries, rate limiting, health probe,
+verify battery). Next.js 16 App Router · TypeScript · Tailwind 4 · shadcn/ui · Prisma +
+SQLite · TanStack Query · Zustand.
 
 ## What runs here
 
+**Core (waves 1–2):**
+
 | Surface | Route | Notes |
 |---|---|---|
-| Studio (create) | `/` | Model picker, prompt, aspect presets, resolution, batch, folder, `Generate {cost}` button (§1a) |
-| My generations | `/generate/all`, `/generate/folder/[folderId]`, `/generate/trash` | Folder cards with `recent_jobs_count`, status-chip result cards, soft-delete trash with count |
+| Cinema Studio (create) | `/` | Model picker, prompt, aspect presets, resolution, batch, folder, `Generate {cost}` (§1a) |
+| My generations | `/generate/all`, `/generate/folder/[folderId]`, `/generate/trash` | Folder cards with `recent_jobs_count`, status-chip result cards, soft-delete trash |
 | Community | `/community` (`?tab=generations\|contests\|creators\|originals\|projects`) | Public feed read-model, trending, creators, contests |
-| Pricing stub | `/pricing` | Plans from `PRICING_CONFIG` (wave-3 scope marker) |
+| Pricing | `/pricing` | Plans from `PRICING_CONFIG` |
 
-Demo sign-in: **Continue as demo creator** (seeded user with 1,000 wallet credits, 10 daily credits,
-a 2-credit `model:face_swap` pool and a 5-generation `nano_banana_2` touring grant — §1c anchors).
+**Wider surface (wave 3):**
 
-## Generation pipeline (wave-2 core)
+| Family | Routes | Evidence |
+|---|---|---|
+| Model catalog | `/explore` | Vendor-grouped image/video model cards + workflows (`inspect-api.json`) |
+| Studios | `/ads-studio{,/all,/ad-multiplier,/brand-research/[brandId],/b/[brandId]}`, `/marketing-studio`, `/ai-influencer-studio` | Landing structures, tools grids, character builder (18 controls) |
+| Creative tools | `/effects` + `/effects/[slug]` (45 named effects), `/canvas{,/[id],/templates/[templateId],/[id]/embed}`, `/edit{,/[projectId],/avatar/[category],/canvas/[imageId]}`, `/audio`, `/assets` | Per-surface `inspect-*.json` captures |
+| Platform | `/api-docs` (Open Platform), `/mcp` + `/mcp/[slug]`, `/academy` | `inspect-api.json`, `inspect-mcp.json`, `inspect-academy.json` |
+| Contests | `/contests/[slug]` + `/contests/[slug]/submissions` | `inspect-contests.json` + bodies digest |
 
-- `POST /api/jobs/{model}` validates the §1a request body **verbatim** (strict zod schema — exact
-  field names, unknown keys rejected). Aspect presets drive width/height server-side:
+Route parity (wave-3 exit gate): **40 implemented / 0 missing / 0 extra / 291 live routes
+explicitly deferred in 16 documented groups** — see `docs/route-parity-report.md`; the
+deferred groups are the prioritized wave-4+ backlog.
+
+Demo sign-in: **Continue as demo creator** (seeded user with 1,000 wallet credits, 10 daily
+credits, a `model:face_swap` pool and a 5-generation `nano_banana_2` touring grant — §1c
+anchors). The clone's auth is a session-cookie stand-in for Clerk (disclosed clone-side
+choice — see ARCHITECTURE.md).
+
+## Generation pipeline (wave-2 core, hardened in wave 4)
+
+- `POST /api/jobs/{model}` validates the §1a request body **verbatim** (strict zod schema —
+  exact field names, unknown keys rejected). Aspect presets drive width/height server-side:
   `3:4 → 896×1200`, `16:9 → 1200×672`, `1:1 → 1024×1024` @1k (doubled @2k).
-- Cost comes from the `MODEL_CATALOG` constant (`nano-banana-2` = 2, `cinema-studio-4` = 80 — both
-  §1a evidence anchors; `wan-2-2-animate-faceswap` = 30, a disclosed clone-side choice).
-- Credits are spent **atomically with job creation** in one Prisma interactive transaction. Every
-  debit is a guarded compare-and-set (`updateMany` + balance condition), so concurrent submissions
-  cannot double-spend (covered by the concurrent ×2 test).
-- Burn order: **free-gens grant for the matching jobSetType → `model:<jobSetType>` → `daily` →
-  `wallet`** (§3.4 pins free-gens before wallet). Every debit writes a `CreditLedger` row.
-- An in-process worker (pluggable `ModelAdapter`) dequeues `queued → processing → done/failed`.
-  The mock adapter resolves after N ms (`MOCK_ADAPTER_MS`, default 1200, ±20% seeded jitter) with a
-  fixture asset chosen deterministically from the job seed (mulberry32 — no `Math.random` anywhere).
-  Failure injection: prompt containing `[fail]` forces failure; `MOCK_FAILURE_PCT` sets a seeded
-  rate. `MOCK_CHALLENGE_PCT` injects DataDome-modeled 429 challenges (§1a).
-- Client polling: TanStack Query, 2 s interval, `1.15^n` backoff capped at 10 s, stops on terminal
-  states (§3.2).
-- `apiFetch` wrapper (§1d): one transparent retry after `POST /api/auth/refresh` on 401; on 429/403
-  challenge → toast **“Something went wrong, please try again”** + one automatic retry (§1a).
-- Notices: `GET /api/notices?lang=en` returns the §1e body; jobs on `wan2_2_animate_faceswap`
-  carry the “Temporary Issues” warning badge (model chip + result cards).
-- Free-gens: `GET /api/user/free-gens/v2` returns the §1c touring shape (amount 5,
-  `nano_banana_2`, claimed flag; `remaining` is an additive key). All pools empty → 402 → the
-  **UPGRADE REQUIRED** modal.
+- Cost = `MODEL_CATALOG` creditCost × batch_size; credits are spent **atomically with job
+  creation** in one Prisma interactive transaction. Every debit is a guarded
+  compare-and-set, so concurrent submissions cannot double-spend.
+- Burn order: **free-gens grant → `model:<jobSetType>` → `daily` → `wallet`** (§3.4); every
+  debit writes a `CreditLedger` row.
+- An in-process worker (pluggable `ModelAdapter`) dequeues `queued → processing →
+  done/failed`, claiming jobs with a transaction-free CAS `updateMany`. SQLite hardening:
+  WAL journal, 5 s busy_timeout, synchronous=NORMAL (`src/lib/db.ts`), tick-error
+  exponential backoff (`src/server/worker.ts`) — the fix for the P1008 socket-timeout storms
+  reproduced under concurrent access (see docs/wave-4-worker-worklog.md).
+- **Job retries (H2)**: one automatic re-enqueue for retryable adapter failures
+  (`maxAttempts = 2`, `attempt` exposed as an additive job key) — the server-side mirror of
+  the client's one-transparent-retry. Non-retryable causes (billing/content class) stay
+  terminal; insufficient credits never create a job at all (terminal 402 pre-queue).
+- **Rate limiting (H3)**: fixed-window limiter, 30 authenticated job-creation POSTs per user
+  per minute (`JOBS_RATE_LIMIT_PER_MIN`, 0 = disabled) → 429 with `Retry-After` + the §1a
+  challenge body the existing client already handles. Clone-side hardening — the live product
+  fronts this with DataDome (out of scope).
+- **Health (H4)**: `GET /api/health` → `{ status, uptime_s, db, queue: { queued, processing },
+  version }`, no auth; 503 when the db check fails.
+- The mock adapter resolves after N ms (`MOCK_ADAPTER_MS`, default 1200, ±20% seeded jitter)
+  with a deterministic fixture. Failure injection: `[fail]` (retryable, fails every attempt),
+  `[fail-once]` (retryable on attempt 1 only), `[fail-terminal]` (non-retryable),
+  `MOCK_FAILURE_PCT` (seeded roll). `MOCK_CHALLENGE_PCT` injects DataDome-modeled 429s.
+- Client: TanStack Query polling (2 s interval, `1.15^n` backoff, stops on terminal states);
+  `apiFetch` wrapper — 401 → refresh + one retry; 429/403 challenge → toast + one retry.
+- Free-gens: `GET /api/user/free-gens/v2` returns the §1c touring shape (`remaining` is an
+  additive key). All pools empty → 402 → the UPGRADE REQUIRED modal.
 
 ## API surface (evidence-shaped, snake_case)
 
-`/api/auth/{login,logout,session,refresh}` · `/api/jobs/{model}` (POST create; GET/DELETE by job id;
-`?purge=1` hard delete) · `/api/jobs/accessible` (`{"jobs":[…],"has_more":bool}`) ·
-`/api/jobs/{id}/restore` · `/api/jobs/{id}/publish` · `/api/folders` (+`/[id]`) ·
-`/api/trash/library/count` · `/api/user` · `/api/user/wallet` · `/api/user/free-gens/v2` ·
-`/api/user/features` · `/api/notices` · `/api/community/generations/feed` · `/api/community/trending`
-· `/api/community/discovery/creators` · `/api/community/discovery/header` · `/api/community/contests`.
-
-401 body is exactly `{"detail":"Invalid or expired token"}` (§1d).
+`/api/auth/{login,logout,session,refresh}` · `/api/jobs/{model}` (POST create; GET/DELETE by
+job id; `?purge=1` hard delete) · `/api/jobs/accessible` · `/api/jobs/{id}/restore` ·
+`/api/jobs/{id}/publish` · `/api/folders` (+`/[id]`) · `/api/trash/library/count` ·
+`/api/user{,/wallet,/features,/free-gens/v2}` · `/api/notices` ·
+`/api/community/{generations/feed,trending,discovery/creators,discovery/header,contests}`
+(+`/[slug]`) · `/api/health`. 401 body is exactly `{"detail":"Invalid or expired token"}` (§1d).
 
 ## Data model (Prisma + SQLite)
 
-`User`, `Folder` (“Project” in product language), `Generation` (the job: `modelVersion`,
-`jobSetType`, width/height, `batchSize`, `inputImages` JSON, `workspaceId`, `folderId`,
-`publishedAt`, `notices` JSON, soft-delete `deletedAt`), `CreditPool` (`wallet|daily|model:<slug>`),
-`CreditLedger`, `FreeGensGrant`, `FeedPublication`, `Contest`.
+`User`, `Folder` (“Project” in product language), `Generation` (the job: model/version,
+dimensions, `batchSize`, `status`, `attempt`, `seed`, `cost`, `creditSpend` JSON, notices
+JSON, soft-delete), `CreditPool` (`wallet|daily|model:<slug>`), `CreditLedger`,
+`FreeGensGrant`, `FeedPublication`, `Contest` (digest-shaped extension). Seed
+(`bun run db:seed`) is idempotent: demo user + pools + grant, 8 creators, 15 generations,
+12 publications, 3 contests.
 
-Seed (`bun run db:seed`) is idempotent (upserts keyed by stable ids): demo user + pools + grant,
-1 folder with 3 done generations (one carrying the §1e notice), 8 creator users, 12 feed
-publications, 3 contests.
-
-## Commands
+## Quickstart
 
 ```bash
-bun run dev        # dev server on :3000 (Turbopack)
-bun run db:push    # idempotent schema push (run twice for the receipt)
-bun run db:seed    # idempotent seed
-bun run lint       # eslint — 0 errors
-bunx tsc --noEmit  # EXIT 0
-bun run build      # production build (standalone)
-bun test tests/api.test.ts   # 19 API tests (needs a running server on :3000)
-bun test tests/e2e.test.ts   # full local loop (run with MOCK_ADAPTER_MS=50 on the server)
+bun install
+bun run db:push     # create/patch the SQLite schema (idempotent)
+bun run db:seed     # idempotent demo data
+bun run dev         # dev server on :3000
 ```
 
-E2E-at-50ms receipt recipe: stop dev, `bun run build`, then
-`DATABASE_URL=file:… MOCK_ADAPTER_MS=50 PORT=3000 HOSTNAME=0.0.0.0 node .next/standalone/server.js`,
-then run both test files against it.
+Verify battery (wave-4 H6): `bun scripts/verify.mjs` — lint · tsc · build · route-parity ·
+clean-server test battery (api + e2e + hardening against a fresh dev server on :3111), prints
+a PASS/FAIL table, exits 0/1, leaves the server running. Full output of the last run is
+committed as `docs/verify-report.md`.
 
-## Wave-2 scope & provenance
+Individual pieces:
 
-Built strictly from the HF-W2 order's **inline §1 evidence** (live-captured 2026-10-17): the §1a
-generation POST body (verbatim field names, credit cost on the GENERATE button), §1b jobs-list
-shape, §1c wallet/user/touring/features bodies, §1d stale-token retry behavior, §1e
-notices/contests field names, §1f route family mapping (`/_private/generate/…` → `/generate/…`,
-`/(public)/community/_tabs/*` → `?tab=…`), §1g community endpoint inventory.
+```bash
+bun run lint        # eslint — 0 errors
+bunx tsc --noEmit   # EXIT 0
+bun test tests/api.test.ts tests/e2e.test.ts tests/hardening.test.ts   # needs a live server
+```
 
-### Disclosures (clone-side choices & wave-1 stand-ins)
+## Honest-scope philosophy & citation conventions
 
-1. The claimed wave-1 base merge was **absent** from the workspace (`main` = scaffold initial
-   commit). Wave 2 is self-contained; the wave-1 stand-ins it needed (app shell, wallet chip,
-   UPGRADE REQUIRED modal, auth session) were built as part of this wave.
-2. The `evidence/rea-2026-10-17/…` files referenced by the order were not present; only the inline
-   §1 bodies were used.
-3. Fixture images are AI-generated demo assets (`public/fixtures/gen-01..15.png`; bytes are
-   JPEG-encoded by the generator CLI despite the `.png` extension — browsers sniff the format).
-   Community feed values (views/likes/dates), contest values, and creator usernames are seeded
-   demo data — field names are verbatim §1e.
-4. `MODEL_CATALOG` slugs/costs beyond the evidence anchors (`nano-banana-2` = 2,
-   `cinema-studio-4` = 80) and the pricing page's Pro tier values are disclosed placeholder demo
-   values (the pricing digest body was not in the workspace).
-5. Determinism law: all generation outputs derive from `mulberry32(job.seed)` (no `Math.random`
-   in shipped code; verified by grep). Record bookkeeping fields (`startedAt/completedAt/
-   deletedAt/publishedAt`, ledger `createdAt`) use DB-level defaults / server-side `Date` — they
-   never influence outputs.
-6. The `/api/jobs/{segment}` route uses one dynamic slug (Next.js forbids two slug names per path
-   level): POST treats it as a model slug (§1a parity), other verbs as a job id. Folder
-   association rides on `?folder_id=` so the §1a body stays verbatim.
+Every structure claim cites the evidence it was derived from — code comments of the form
+`// ev: inspect-<surface>.json §nodes` (node ids from the REA a11y-tree captures in
+`evidence/rea-2026-10-17/surfaces/`), plus the wave-order §1 inline bodies for API shapes.
+Nothing is invented silently: where the live product calls uncaptured endpoints, the clone
+either links into a captured surface, renders a disclosed scoped stub (disabled + visible
+demo-scope note), or marks a catalog entry inert. Where a field/key is clone-side (not in
+evidence) it is labeled additive (e.g. free-gens `remaining`, the job `attempt` counter).
+Known 404 captures (`inspect-projects/settings/video.json`) are never used as ground truth.
+Per-wave worker worklogs in `docs/` carry a DISCLOSURES section listing every stub, mapping
+and clone-side choice; the station re-verifies each claim before merge. Deferred surfaces
+(291 routes) are documented, not faked — see `docs/route-parity-report.md`.
 
-## Wave 3+ (not in scope here)
+## Scope & provenance
 
-The remaining route-manifest surface (364 routes): settings/billing family, profile pages,
-originals/projects content, posts/publications detail, contests submission flow.
+Built strictly from the HF wave orders' evidence base (`evidence/rea-2026-10-17/`: 2,682-row
+network capture, 73-endpoint inventory, 17 surface DOM/a11y captures, the 364-key
+route-preload manifest). Wave docs: `docs/HF-PROGRAM/` (START-HERE, ROADMAP, WAVE3-PACKET),
+per-wave worklogs in `docs/`, architecture in `ARCHITECTURE.md`, deployment in
+`docs/DEPLOY.md`.
