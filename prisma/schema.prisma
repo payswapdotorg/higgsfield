@@ -139,18 +139,36 @@ model FeedPublication {
 }
 
 /// §1e contests items (field names verbatim, values are seeded demo data).
+/// HF-W3C extension — the wave-2 model lacked fields the live contests body
+/// carries (evidence/rea-2026-10-17/api-bodies-digest.json → contests items
+/// keys: prize_pool, submissions_count, winner, some_contestants, judges,
+/// is_trending). SQLite has no list/object columns, so winner / some_contestants
+/// / judges are stored as JSON strings (the same convention as
+/// Generation.inputImages / creditSpend).
 model Contest {
-  id           String   @id @default(cuid())
-  slug         String   @unique
-  title        String
-  description  String
-  startAt      DateTime
-  endAt        DateTime
-  status       String   @default("open")
-  previewImage String?
-  previewVideo String?
-  logoUrl      String?
-  redirectUrl  String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  title           String
+  description     String
+  startAt         DateTime
+  endAt           DateTime
+  status          String   @default("open")
+  previewImage    String?
+  previewVideo    String?
+  logoUrl         String?
+  redirectUrl     String?
+  /// digest key prize_pool (USD, e.g. 1000000).
+  prizePool       Int?
+  /// digest key submissions_count.
+  submissionsCount Int     @default(0)
+  /// digest key winner — JSON {id, username, avatar_url} | null.
+  winner          String?
+  /// digest key some_contestants — JSON [{id, username, avatar_url}].
+  someContestants String   @default("[]")
+  /// digest key judges — JSON [{user_id, display_name, description, avatar_url, background_url, external_link}].
+  judges          String   @default("[]")
+  /// digest key is_trending.
+  isTrending      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

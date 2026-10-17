@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { format } from "date-fns";
 import { RotateCcw, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -95,21 +96,25 @@ export function ContestsTab() {
             <div className="flex flex-1 flex-col gap-2 p-4">
               <h3 className="font-semibold leading-snug">{contest.title}</h3>
               <p className="line-clamp-2 text-sm text-muted-foreground">{contest.description}</p>
+              {/* ev: inspect-contests.json 'Prize pool' 6909 + '$1,000,000' 6912 —
+                  rendered when the contests body carries prize_pool (HF-W3C C4). */}
+              {contest.prize_pool != null && (
+                <p className="text-xs font-medium tabular-nums">
+                  Prize pool ${contest.prize_pool.toLocaleString("en-US")}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground">
                 {format(new Date(contest.start_at), "MMM d, yyyy")}
                 {" – "}
                 {format(new Date(contest.end_at), "MMM d, yyyy")}
               </p>
               <div className="mt-auto pt-3">
-                {/* Title on the wrapper keeps the tooltip reachable while the button is disabled. */}
-                <span
-                  className="block w-full"
-                  title="Contest submission flows ship in Wave 3."
-                >
-                  <Button variant="secondary" size="sm" className="w-full" disabled>
-                    Opens in wave 3
-                  </Button>
-                </span>
+                {/* HF-W3C C4: contest detail pages are live — the disabled
+                    "Opens in wave 3" placeholder is replaced by a real link.
+                    Label ev: 'View details' 6936 / 'View Adathon details' 6922. */}
+                <Button asChild variant="secondary" size="sm" className="w-full">
+                  <Link href={`/contests/${contest.slug}`}>View details</Link>
+                </Button>
               </div>
             </div>
           </article>

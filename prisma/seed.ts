@@ -61,45 +61,103 @@ const FEED: Array<{
   { fixture: "gen-12", username: "vega.motion", prompt: "Explorer with a torch discovering a vast ancient library, dust particles in the light beam", model: "nano-banana-2", kind: "image", aspect: "3:4", width: 896, height: 1200, views: 1987, likes: 187, publishedAt: "2026-10-05T08:00:00Z" },
 ];
 
+/**
+ * 3 contests — §1e field names verbatim; values now taken from the live
+ * contests body (HF-W3C C4: evidence/rea-2026-10-17/api-bodies-digest.json →
+ * contests items, keys prize_pool / submissions_count / winner /
+ * some_contestants / judges / is_trending included verbatim where captured).
+ * Clone-side mappings (disclosed): the digest preview_image/logo_url values
+ * are live CDN assets, so previewImage points at the local fixtures the seed
+ * ships (same convention as the feed fixtures); winner/contestant/judge
+ * avatar_url values keep their digest URLs and degrade to initials offline.
+ */
+const ACTION_SCENE_WINNER = JSON.stringify({
+  id: "user_2wC4cmbjNFlqEz3cX7be7cO9GDv",
+  username: "mrabujoe",
+  avatar_url:
+    "https://d2ol7oe51mr4n9.cloudfront.net/user_2wC4cmbjNFlqEz3cX7be7cO9GDv/2c041173-8c71-4c46-9e73-21d45ef8900d.png",
+});
+
+const ACTION_SCENE_CONTESTANTS = JSON.stringify([
+  { id: "user_2v6VgaMnJ5GyJeBVqK7RHExAAc6", username: "deepframelabs", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/user_2v6VgaMnJ5GyJeBVqK7RHExAAc6/17ee8356-28d1-44e0-a1c0-14ff2f1262da.jpg" },
+  { id: "user_2v5lW6QMh8Qe2ErAEdImqKSFhmY", username: "visioneer", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/anon_user_id/c90e97a2-7323-4f2a-b5de-b35984fcf95e.jpg" },
+  { id: "user_2v6W8MMS96Ng1RrIzn6xP1EAK43", username: "adamadam", avatar_url: "https://d1xarpci4ikg0w.cloudfront.net/profile-avatars/v1/211d812645b21c8482077bd6dd281782.webp" },
+  { id: "user_2v5thGZ3LeID5zCBaaPJeBhaTQr", username: "fotachu", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/user_2v5thGZ3LeID5zCBaaPJeBhaTQr/19bd3145-2738-409c-95ae-353b85d353e7.jpg" },
+  { id: "user_2v66kcK2bDovMs4Dba0ZaJaaWrc", username: "camheyes", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/user_2v66kcK2bDovMs4Dba0ZaJaaWrc/a27389dc-a37f-417e-8588-485162b66204.jpg" },
+  { id: "user_2v5tbYAddEFriH9nud9AKNujdGN", username: "sketching_llama_omega", avatar_url: "https://d1xarpci4ikg0w.cloudfront.net/profile-avatars/v1/804fd0cc49c2122d14eac995882475b4.webp" },
+  { id: "user_2v6XdxSJ5n6ngySyAMBDqwTKnj6", username: "dreamdesyn", avatar_url: "https://d1xarpci4ikg0w.cloudfront.net/profile-avatars/v1/ccae25129bf850c1549064166a6e6f99.webp" },
+  { id: "user_2v6KEzDLumxxwu7GI9eb73l4aRu", username: "kasianovakai", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/user_2v6KEzDLumxxwu7GI9eb73l4aRu/8187c1a4-b2be-4709-982c-7b640d13a196.jpg" },
+  { id: "user_2v66OLomUuCbeYP5EOQNBVxEOE6", username: "ice_rain", avatar_url: "https://d1xarpci4ikg0w.cloudfront.net/profile-avatars/v1/e22673f69113f507d10aeec0c9810bac.webp" },
+  { id: "user_2v6Or0AGes1YnhsXX8LfVxcnAG1", username: "rothko_banana_ultimate", avatar_url: "https://d1xarpci4ikg0w.cloudfront.net/profile-avatars/v1/9966e6e916b7a74a95e1feae464cfb07.webp" },
+]);
+
+const ACTION_SCENE_JUDGES = JSON.stringify([
+  { user_id: null, display_name: "Buralqy", description: "VFX Studio", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/a6092285-70a4-4f4e-93d7-9a467dd9f5e4.png", background_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/bfc93f24-ded8-41e0-af87-e9ebe1fb9428.png", external_link: "https://buralqy.com/" },
+  { user_id: null, display_name: "PBC Worldwide", description: "Production Studio", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/13296e60-d281-4364-8965-2303165683bf.png", background_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/b6e4f1b8-4e8e-42ce-9b99-cb3dec28ef1d.png", external_link: "https://www.instagram.com/pbc.worldwide/" },
+  { user_id: null, display_name: "Secret Level", description: "AI Production Studio", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/873799f7-2dd5-45cc-a314-ec4a4ba535c5.png", background_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/00a3757f-b4f4-4e43-9984-5101754d7fa1.png", external_link: "https://www.secretlevel.co" },
+  { user_id: null, display_name: "Rourke", description: "AI Blog", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/64ea9204-e29a-4f49-9f83-41323ed166b2.png", background_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/f29599bd-a91b-49d6-a9e7-1d5759e16081.png", external_link: "https://www.instagram.com/rourke/" },
+  { user_id: null, display_name: "PJ Ace", description: "AI Creator", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/03597b56-e616-47ea-bd8c-759679cb2db0.png", background_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/052ed2fd-c7b8-4de7-b62f-f737801ad236.png", external_link: "https://www.instagram.com/pjacefilms/" },
+  { user_id: null, display_name: "Jama Jurabaev", description: "Concept Artist", avatar_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/1d95213a-fe87-430f-9171-a15999d592da.png", background_url: "https://d2ol7oe51mr4n9.cloudfront.net/content_user_id/19013bc9-45f7-44d6-a490-dcb40a7fc9cb.png", external_link: "https://www.instagram.com/jamajurabaev/" },
+]);
+
 const CONTESTS = [
   {
     id: "seed-contest-1",
-    slug: "neon-dreams",
-    title: "Neon Dreams",
-    description: "Submit your most atmospheric neon-lit cinematics. Rain, reflections, and night cities.",
-    startAt: "2026-10-01T00:00:00Z",
-    endAt: "2026-10-31T23:59:59Z",
+    slug: "higgsfield-global-film-festival",
+    title: "Higgsfield Festival",
+    description: "Higgsfield AI Film Festival — $1,000,000 Prize Pool",
+    startAt: "2026-07-16T00:00:00Z",
+    endAt: "2026-07-30T23:59:00Z",
     status: "open",
     previewImage: "/fixtures/gen-06.png",
     previewVideo: null,
     logoUrl: null,
-    redirectUrl: "#",
+    redirectUrl: null,
+    prizePool: 1000000,
+    submissionsCount: 0,
+    winner: null,
+    someContestants: "[]",
+    judges: "[]",
+    isTrending: true,
   },
   {
     id: "seed-contest-2",
-    slug: "cinematic-portraits-2026",
-    title: "Cinematic Portraits 2026",
-    description: "Portrait photography with a story. Dramatic light, film grain, real emotion.",
-    startAt: "2026-09-15T00:00:00Z",
-    endAt: "2026-11-15T23:59:59Z",
-    status: "open",
+    slug: "higgsfield-seedance-2-contest",
+    title: "Higgsfield Seedance 2.0 Contest",
+    description: "Higgsfield Seedance 2.0 Contest",
+    startAt: "2026-04-07T12:00:00Z",
+    endAt: "2026-04-14T12:00:00Z",
+    status: "created",
     previewImage: "/fixtures/gen-08.png",
     previewVideo: null,
     logoUrl: null,
-    redirectUrl: "#",
+    redirectUrl: null,
+    prizePool: 50000,
+    submissionsCount: 0,
+    winner: null,
+    someContestants: "[]",
+    judges: "[]",
+    isTrending: false,
   },
   {
     id: "seed-contest-3",
-    slug: "motion-masters",
-    title: "Motion Masters",
-    description: "Best AI video motion shot of the season. Camera moves that tell the story.",
-    startAt: "2026-10-10T00:00:00Z",
-    endAt: "2026-12-01T23:59:59Z",
-    status: "open",
+    slug: "make-your-action-scene",
+    title: "Make Your Action Scene",
+    description:
+      "Build a world, pick your hero, raise the stakes, and cut a scene that makes people wish your film was real.",
+    startAt: "2026-02-09T19:00:00Z",
+    endAt: "2026-03-01T08:00:00Z",
+    status: "finished",
     previewImage: "/fixtures/gen-10.png",
     previewVideo: null,
     logoUrl: null,
-    redirectUrl: "#",
+    redirectUrl: null,
+    prizePool: 500000,
+    submissionsCount: 8752,
+    winner: ACTION_SCENE_WINNER,
+    someContestants: ACTION_SCENE_CONTESTANTS,
+    judges: ACTION_SCENE_JUDGES,
+    isTrending: false,
   },
 ];
 
@@ -321,34 +379,34 @@ async function main() {
     });
   }
 
-  // ── 3 contests (§1e field names verbatim; values are demo data) ──
+  // ── 3 contests (§1e field names verbatim; values from the live contests
+  //    body — see the CONTESTS header). Stale slugs from earlier seed
+  //    generations are removed so re-seeding stays canonical (HF-W3C C4). ──
+  await db.contest.deleteMany({
+    where: { slug: { notIn: CONTESTS.map((c) => c.slug) } },
+  });
   for (const c of CONTESTS) {
+    const fields = {
+      title: c.title,
+      description: c.description,
+      startAt: iso(c.startAt),
+      endAt: iso(c.endAt),
+      status: c.status,
+      previewImage: c.previewImage,
+      previewVideo: c.previewVideo,
+      logoUrl: c.logoUrl,
+      redirectUrl: c.redirectUrl,
+      prizePool: c.prizePool,
+      submissionsCount: c.submissionsCount,
+      winner: c.winner,
+      someContestants: c.someContestants,
+      judges: c.judges,
+      isTrending: c.isTrending,
+    };
     await db.contest.upsert({
       where: { slug: c.slug },
-      update: {
-        title: c.title,
-        description: c.description,
-        startAt: iso(c.startAt),
-        endAt: iso(c.endAt),
-        status: c.status,
-        previewImage: c.previewImage,
-        previewVideo: c.previewVideo,
-        logoUrl: c.logoUrl,
-        redirectUrl: c.redirectUrl,
-      },
-      create: {
-        id: c.id,
-        slug: c.slug,
-        title: c.title,
-        description: c.description,
-        startAt: iso(c.startAt),
-        endAt: iso(c.endAt),
-        status: c.status,
-        previewImage: c.previewImage,
-        previewVideo: c.previewVideo,
-        logoUrl: c.logoUrl,
-        redirectUrl: c.redirectUrl,
-      },
+      update: fields,
+      create: { id: c.id, slug: c.slug, ...fields },
     });
   }
 

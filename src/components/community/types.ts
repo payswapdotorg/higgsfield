@@ -32,7 +32,34 @@ export interface FeedResponse {
   has_more: boolean;
 }
 
-/** Contest item — GET /api/community/contests (§1e field names verbatim) */
+/**
+ * Contest item — GET /api/community/contests (§1e field names verbatim).
+ * HF-W3C C4: the optional fields below are the live contests-body keys the
+ * wave-2 route lacked (evidence/rea-2026-10-17/api-bodies-digest.json →
+ * contests items: prize_pool, submissions_count, winner, some_contestants,
+ * judges, is_trending — cited in the route + detail page).
+ */
+export interface ContestWinner {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+}
+
+export interface ContestContestant {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+}
+
+export interface ContestJudge {
+  user_id: string | null;
+  display_name: string;
+  description: string;
+  avatar_url: string | null;
+  background_url: string | null;
+  external_link: string | null;
+}
+
 export interface ContestItem {
   id: string;
   slug: string;
@@ -45,6 +72,18 @@ export interface ContestItem {
   preview_video: string | null;
   logo_url: string | null;
   redirect_url: string | null;
+  /** digest key prize_pool (USD). */
+  prize_pool?: number | null;
+  /** digest key submissions_count. */
+  submissions_count?: number;
+  /** digest key winner — JSON object parsed by the API. */
+  winner?: ContestWinner | null;
+  /** digest key some_contestants — parsed array. */
+  some_contestants?: ContestContestant[];
+  /** digest key judges — parsed array. */
+  judges?: ContestJudge[];
+  /** digest key is_trending. */
+  is_trending?: boolean;
 }
 
 /** Creator item — GET /api/community/discovery/creators */
