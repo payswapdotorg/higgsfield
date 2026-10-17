@@ -10,6 +10,12 @@
  * Aspect presets drive width/height server-side (3:4 → 896×1200 @1k; @2k doubles).
  * Cost = MODEL_CATALOG creditCost × batch_size; credits are spent atomically with job creation.
  * DataDome-style challenges are modeled as a seeded 429 (MOCK_CHALLENGE_PCT, default 0).
+ *
+ * Wave-4 H3 (clone-side hardening — the live product fronts this with DataDome, out of scope
+ * per HF-START-HERE): every authenticated POST passes the in-memory fixed-window limiter
+ * (JOBS_RATE_LIMIT_PER_MIN, default 30 per user per minute) BEFORE validation — attempts count,
+ * not successes. The 429 reuses the §1a challenge body so the existing client's one-retry +
+ * toast path handles it unchanged; a Retry-After header carries the window's remaining seconds.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -18,6 +24,7 @@ import { requireUser } from "@/lib/auth";
 import { MODEL_CATALOG, presetFor, noticesForJobSetType, type AspectRatio, type Resolution } from "@/lib/catalog";
 import { jobToJson } from "@/lib/job-shape";
 import { InsufficientCreditsError, spendCredits } from "@/server/credits";
+import { checkJobsRateLimit } from "@/server/rate-limit";
 import { ensureWorker } from "@/server/worker";
 import { fnv1a, mulberry32 } from "@/lib/seeded-rng";
 
@@ -60,6 +67,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const auth = await requireUser(req);
   if ("response" in auth) return auth.response;
   const user = auth.user;
+
+  // H3 fixed-window limiter — sits after auth (keyed by user id), before model lookup and body
+  // validation: an authenticated POST counts regardless of its eventual outcome.
+  const rl = checkJobsRateLimit(user.id);
+  if (rl.limited) {
+    return NextResponse.json(
+      { detail: "challenge" }, // §1a challenge body — the existing api-client 429 path
+      { status: 429, headers: { "retry-after": String(rl.retryAfterSeconds) } }
+    );
+  }
 
   const { model: modelSlug } = await params;
   const model = MODEL_CATALOG[modelSlug];

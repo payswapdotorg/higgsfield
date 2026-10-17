@@ -12,6 +12,16 @@
  *   (b) non-retryable failure stays terminal at attempt = 1 (mock token `[fail-terminal]`);
  *   (c) maxAttempts caps at 2 — a persistent retryable failure (token `[fail]`) retries once,
  *       then lands terminal `failed` with attempt = 2.
+ *
+ * H3 cases: hammering POST /api/jobs/{model} past the per-user fixed-window limit → 429 with a
+ * Retry-After header and the §1a challenge body the existing api-client already handles; a
+ * second user in the same window is unaffected. The limiter is per-user and module-global in
+ * the SERVER process — unique test users per case keep its state from leaking between tests
+ * (cleanupTestUsers deletes the users; their limiter keys die with their ids — never reused,
+ * since a re-created user gets a new id). The server-side map is unreachable from the test
+ * process, so isolation relies on that per-user keying (disclosed; the limiter module also
+ * exports __resetJobsRateLimiterForTests for any future in-process unit use, and
+ * JOBS_RATE_LIMIT_PER_MIN=0 disables it wholesale).
  */
 import { beforeEach, afterAll, describe, expect, test } from "bun:test";
 import {
@@ -135,6 +145,65 @@ describe("H2 — job retries (maxAttempts = 2, retryable-cause classification)",
     };
     expect(stable.job.status).toBe("failed");
     expect(stable.job.attempt).toBe(2);
+  });
+});
+
+describe("H3 — rate limiting on POST /api/jobs/{model} (per-user fixed window)", () => {
+  test("hammering past the limit → 429 + Retry-After + §1a challenge body; a second user is unaffected", async () => {
+    // The window limit is the server's JOBS_RATE_LIMIT_PER_MIN (default 30). The test discovers
+    // it empirically instead of assuming the value: hammer until the first 429, then assert the
+    // 429 contract (header, body, persistence within the window) and per-user isolation.
+    const jarA = await login("hf-w2-test-rl@hf-test.local", "rl_hammer");
+    const badBody = { not: "a §1a body" }; // authenticated POSTs count regardless of validation outcome
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 45; i++) {
+      const res = await authFetch(jarA, "/api/jobs/nano-banana-2", {
+        method: "POST",
+        body: JSON.stringify(badBody),
+      });
+      statuses.push(res.status);
+    }
+
+    const first429 = statuses.indexOf(429);
+    expect(first429).toBeGreaterThan(0); // not the very first request — a real window limit
+    expect(first429).toBeLessThan(45); // exceeded within the hammer
+
+    // Within the open window, every further request is also limited.
+    for (let i = first429; i < statuses.length; i++) {
+      expect(statuses[i]).toBe(429);
+    }
+
+    // The 429 carries Retry-After (seconds until the window closes) and the §1a challenge body
+    // the existing api-client already handles (toast + one retry — src/lib/api-client.ts).
+    const limited = await authFetch(jarA, "/api/jobs/nano-banana-2", {
+      method: "POST",
+      body: JSON.stringify(badBody),
+    });
+    expect(limited.status).toBe(429);
+    const retryAfter = Number(limited.headers.get("retry-after"));
+    expect(retryAfter).toBeGreaterThanOrEqual(1);
+    expect(retryAfter).toBeLessThanOrEqual(60);
+    expect(await limited.json()).toEqual({ detail: "challenge" });
+
+    // A DIFFERENT user in the same window is unaffected: a valid job creation succeeds.
+    const jarB = await login("hf-w2-test-rl-b@hf-test.local", "rl_second_user");
+    await setPools(await jarUserId(jarB), [{ kind: "wallet", balance: 10 }]);
+    const resB = await postJob(jarB, "nano-banana-2", verbatimJobBody("rate limit isolation check"));
+    expect(resB.status).toBe(200);
+    const jobB = (await resB.json()) as { job: { id: string; attempt: number } };
+    expect(jobB.job.attempt).toBe(1);
+
+    // Drain the created job so afterAll cleanup does not race an in-flight worker claim.
+    await waitFor(
+      async () => {
+        const r = await authFetch(jarB, `/api/jobs/${jobB.job.id}`);
+        const body = (await r.json()) as { job: { status: string } };
+        return body.job.status === "done" || body.job.status === "failed";
+      },
+      20000,
+      "rl isolation job terminal"
+    );
   });
 });
 
