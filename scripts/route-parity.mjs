@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
  * HF-W3C C6 — the route-parity exit gate (wave-3 final).
+ * HF-W5 update — curated scope extended with the settings-account + profile-pages
+ * families (22 routes); the two deferred groups they occupied are removed.
  *
  * Order: docs/HF-PROGRAM/HF-WAVE3-PACKET.md → Sub-order 3C exit gate —
  * "route-inventory parity script: walk src/app for app-router routes, diff
@@ -187,10 +189,41 @@ const CURATED = [
   // --- contests (wave 3C C4) ---
   { live: "/contests/:contestSlug", app: "/contests/:slug" },
   { live: "/contests/:contestSlug/submissions", app: "/contests/:slug/submissions", note: "packet 3C orders a \"submissions route shell\" — routed shell with a visible uncaptured-gallery disclosure" },
+
+  // --- settings-account (wave 5 — HF-W5; 14 routes) ---
+  // Manifest keys /_private/me/settings{,/,_team} + the 13 children. The child
+  // routes billing/members/organization/sub-workspaces/unlimited-access-history
+  // live under the pathless _team layout on the live tree (normalized away).
+  { live: "/me/settings", app: "/me/settings", note: "3 manifest keys collapse here (settings, settings/, settings/_team); layout is a disclosed clone-side choice — the live settings page was never captured (inspect-settings.json is a policy-filtered shell)" },
+  { live: "/me/settings/billing", app: "/me/settings/billing", note: "live key /_private/me/settings/_team/billing (pathless _team layout flattened)" },
+  { live: "/me/settings/cancel", app: "/me/settings/cancel" },
+  { live: "/me/settings/gift", app: "/me/settings/gift" },
+  { live: "/me/settings/members", app: "/me/settings/members", note: "live key /_private/me/settings/_team/members" },
+  { live: "/me/settings/onboarding", app: "/me/settings/onboarding" },
+  { live: "/me/settings/organization", app: "/me/settings/organization", note: "live key /_private/me/settings/_team/organization" },
+  { live: "/me/settings/promo", app: "/me/settings/promo" },
+  { live: "/me/settings/referrals", app: "/me/settings/referrals" },
+  { live: "/me/settings/sessions", app: "/me/settings/sessions" },
+  { live: "/me/settings/sub-workspaces", app: "/me/settings/sub-workspaces", note: "live key /_private/me/settings/_team/sub-workspaces" },
+  { live: "/me/settings/subscription", app: "/me/settings/subscription" },
+  { live: "/me/settings/unlimited-access-history", app: "/me/settings/unlimited-access-history", note: "live key /_private/me/settings/_team/unlimited-access-history" },
+  { live: "/me/settings/usage", app: "/me/settings/usage" },
+
+  // --- profile-pages (wave 5 — HF-W5; 8 routes) ---
+  // Manifest keys /_private/profile/$username{,/} + children; blogs_/$slug uses
+  // the trailing-_ normalization (blogs → /blogs/:slug, wave-3C convention).
+  { live: "/profile/:username", app: "/profile/:username", note: "2 manifest keys collapse here (profile/$username, profile/$username/) — public profile layout from the captured /user/profile body; page layout itself is a disclosed clone-side choice" },
+  { live: "/profile/:username/achievements", app: "/profile/:username/achievements", note: "honest shell — no badge/achievement payload captured (profile body: badge null, badges [])" },
+  { live: "/profile/:username/blogs", app: "/profile/:username/blogs", note: "honest shell — no blog payload captured" },
+  { live: "/profile/:username/blogs/:slug", app: "/profile/:username/blogs/:slug", note: "live key /_private/profile/$username/blogs_/$slug (trailing-_ quirk); honest shell — no blog post captured" },
+  { live: "/profile/:username/generations", app: "/profile/:username/generations", note: "renders the user's published FeedPublications (community read-model)" },
+  { live: "/profile/:username/projects", app: "/profile/:username/projects", note: "honest shell — aggregate totals real, public project payload uncaptured" },
+  { live: "/profile/:username/projects/:projectSlug", app: "/profile/:username/projects/:projectSlug", note: "honest shell — project detail uncaptured" },
+  { live: "/profile/:username/ranking", app: "/profile/:username/ranking", note: "honest shell — no leaderboard payload captured" },
 ];
 
 // ---------------------------------------------------------------------------
-// 4. Deferred live routes (out of wave 1–3 scope) — first match wins
+// 4. Deferred live routes (out of wave 1–5 scope) — first match wins
 // ---------------------------------------------------------------------------
 
 const DEFERRED_GROUPS = [
@@ -208,16 +241,6 @@ const DEFERRED_GROUPS = [
     name: "flow-tree",
     match: /^\/flow(\/|$)/,
     reason: "Legacy/alternate generation flows (avatar presets, fashion, photodump, speech, draw, mixed-media, shorts) — the wave-2 single-pipeline architecture (Cinema Studio + jobs API) is the clone's only generation path by design.",
-  },
-  {
-    name: "settings-account",
-    match: /^\/me\/settings(\/|$)/,
-    reason: "Account/billing/team settings surface uncaptured (inspect-settings.json is a 404 capture); wave 4+.",
-  },
-  {
-    name: "profile-pages",
-    match: /^\/profile(\/|$)/,
-    reason: "Per-creator public profile pages (blogs, rankings, projects, achievements) uncaptured — the community creators tab carries the clone's creator surface.",
   },
   {
     name: "academy-children",
@@ -339,7 +362,7 @@ for (const d of deferred) {
 const runDate = new Date().toISOString().slice(0, 10);
 const pad = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s.padEnd(n));
 
-console.log(`HF route-parity exit gate (wave-3 final, C6) — run ${runDate}`);
+console.log(`HF route-parity exit gate (wave-3 final C6 + wave-5 settings/profile extension) — run ${runDate}`);
 console.log(`app pages walked     : ${appRoutes.length} (src/app page.tsx inventory; api subtree excluded)`);
 console.log(`live manifest        : ${Object.keys(manifest).length} keys → ${live.size} normalized routes`);
 console.log(`curated in-scope     : ${CURATED.length} entries (${CURATED.filter((c) => c.note).length} with alias/disclosure notes)`);
@@ -362,7 +385,7 @@ console.log(`EXTRA (app pages with no curated counterpart) — ${extra.length}`)
 for (const r of extra) console.log(`  ${r} (no live counterpart in the curated scope — must be covered by an alias or removed)`);
 console.log("");
 
-console.log(`DEFERRED (live routes out of wave 1–3 scope) — ${deferred.length} routes in ${grouped.size} groups`);
+console.log(`DEFERRED (live routes out of wave 1–5 scope) — ${deferred.length} routes in ${grouped.size} groups`);
 for (const g of DEFERRED_GROUPS) {
   const members = grouped.get(g.name);
   if (!members) continue;
@@ -379,6 +402,6 @@ console.log("");
 
 const ok = missing.length === 0 && curationErrors.length === 0 && ungrouped.length === 0;
 console.log(
-  `RESULT: ${ok ? "exit 0 — curated wave 1–3 scope fully implemented" : "exit 1 — gaps above must be fixed"}`,
+  `RESULT: ${ok ? "exit 0 — curated wave 1–5 scope fully implemented" : "exit 1 — gaps above must be fixed"}`,
 );
 process.exit(ok ? 0 : 1);

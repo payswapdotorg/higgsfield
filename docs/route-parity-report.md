@@ -1,27 +1,34 @@
-# Route-parity exit gate report — wave-3 final (HF-W3C C6)
+# Route-parity exit gate report — wave-3 final (HF-W3C C6) + wave-5 extension
 
 Run date: **2026-10-17** · Gate: `scripts/route-parity.mjs` (zero-dep, bun/node)
-· Branch: `hf/wave-3c-platform` · Result: **exit 0**
+· Branch: `hf/wave-5-settings` (wave-5 extension of the wave-3 gate) · Result: **exit 0**
 
 The wave-3 final exit gate ordered by `docs/HF-PROGRAM/HF-WAVE3-PACKET.md`
 (sub-order 3C): walk `src/app` for App-Router pages, flatten the live
 `evidence/rea-2026-10-17/route-preload-manifest.json` route tree, diff against
 the curated wave 1–3 scope, and print implemented / missing / extra / deferred.
-This report is the formatted record of the final (post-gap-fix) run; the raw
+**HF-W5** extended the curated scope with the settings-account (14) and
+profile-pages (8) route families and removed the two deferred groups they
+occupied. This report is the formatted record of the wave-5 run; the raw
 stdout is reproducible with `bun scripts/route-parity.mjs`.
 
 ## Summary
 
 | Measure | Count |
 |---|---|
-| App pages walked (`src/app/**/page.tsx`, api subtree excluded) | **32** |
+| App pages walked (`src/app/**/page.tsx`, api subtree excluded) | **54** |
 | Live manifest keys → normalized live routes | 364 → **330** |
-| Curated in-scope entries | **40** (17 carry alias/disclosure notes) |
-| IMPLEMENTED (matched pairs) | **40** |
-| MISSING (in curated scope, no app route) | **0** — after the C6 gap fix |
+| Curated in-scope entries | **62** (31 carry alias/disclosure notes) |
+| IMPLEMENTED (matched pairs) | **62** |
+| MISSING (in curated scope, no app route) | **0** |
 | EXTRA (app pages with no curated counterpart) | **0** |
-| DEFERRED (out of wave 1–3 scope) | **291** routes in 16 groups |
+| DEFERRED (out of wave 1–5 scope) | **269** routes in 14 groups |
 | Curation errors / ungrouped routes | 0 / 0 |
+
+**Wave-5 note on the group count:** the wave-5 dispatch predicted “now-15
+groups”; the actual arithmetic is 16 − 2 = **14** (removing settings-account and
+profile-pages from the 16 wave-3 groups). The dispatch figure was a miscount —
+the gate itself is the source of truth and exits 0 with 269/14.
 
 **Gate history:** first run (before the fix) found exactly one MISSING entry —
 `/contests/:contestSlug/submissions → /contests/:slug/submissions` (the packet's
@@ -55,7 +62,7 @@ App-side conventions: `[x]` → `:x`, `[...x]` → `*`, `(group)` route-group
 directories stripped, `src/app/api/**` (route handlers) excluded, non-page
 files ignored.
 
-## IMPLEMENTED — the curated wave 1–3 scope (40 matched pairs)
+## IMPLEMENTED — the curated wave 1–5 scope (62 matched pairs)
 
 Legend: *keys* = number of manifest keys that collapse onto the live path;
 entries with a note are ALIAS pairs (disclosed clone-side convention, live
@@ -156,6 +163,51 @@ path ≠ app path).
 | `/contests/:contestSlug` | `/contests/:slug` | 1 | — |
 | `/contests/:contestSlug/submissions` | `/contests/:slug/submissions` | 1 | Packet 3C orders a "submissions route shell" — **the C6 gap**: implemented as a routed shell with a visible uncaptured-gallery disclosure |
 
+### Settings-account (wave 5 — HF-W5; 14 routes)
+
+Manifest keys `/_private/me/settings{,/,_team}` + the 13 children; the
+`_team` pathless layout carries billing / members / organization /
+sub-workspaces / unlimited-access-history on the live tree. Data contracts
+verbatim from `api-bodies-digest.json` (`settings`, `profile`, `user`,
+`wallet`, `pricing-config` v45.0.0); the PAGE LAYOUT is a disclosed clone-side
+choice (the settings surface was never captured — inspect-settings.json is a
+policy-filtered shell).
+
+| Live route | App route | keys | Note |
+|---|---|---|---|
+| `/me/settings` | `/me/settings` | 3 | Overview: profile body fields + the consent switches (inert — GET-only capture) |
+| `/me/settings/billing` | `/me/settings/billing` | 1 | live key `…/_team/billing`; wallet body verbatim + honest no-invoices empty state |
+| `/me/settings/cancel` | `/me/settings/cancel` | 1 | honest shell; real datums is_cancel_inited / plan_ends_at |
+| `/me/settings/gift` | `/me/settings/gift` | 1 | honest shell; real datum is_gift_subscription |
+| `/me/settings/members` | `/me/settings/members` | 1 | live key `…/_team/members`; honest shell + real workspace facts |
+| `/me/settings/onboarding` | `/me/settings/onboarding` | 1 | honest shell |
+| `/me/settings/organization` | `/me/settings/organization` | 1 | live key `…/_team/organization`; honest shell + real workspace facts |
+| `/me/settings/promo` | `/me/settings/promo` | 1 | real datums promo_state / cohort (captured user-body values) |
+| `/me/settings/referrals` | `/me/settings/referrals` | 1 | honest shell |
+| `/me/settings/sessions` | `/me/settings/sessions` | 1 | honest shell |
+| `/me/settings/sub-workspaces` | `/me/settings/sub-workspaces` | 1 | live key `…/_team/sub-workspaces`; honest shell |
+| `/me/settings/subscription` | `/me/settings/subscription` | 1 | plan_type + credit pools + captured subscription-state keys + the captured pricing-config plan tree |
+| `/me/settings/unlimited-access-history` | `/me/settings/unlimited-access-history` | 1 | live key `…/_team/unlimited-access-history`; honest shell + real datum has_unlim |
+| `/me/settings/usage` | `/me/settings/usage` | 1 | credit totals + per-model pools; analytics uncaptured |
+
+### Profile-pages (wave 5 — HF-W5; 8 routes)
+
+Manifest keys `/_private/profile/$username{,/}` + children; `blogs_/$slug`
+uses the trailing-_ normalization. Data contract verbatim from
+`api-bodies-digest.json` → `profile`; the public page layout is a disclosed
+clone-side choice. Unknown usernames → 404 on every route.
+
+| Live route | App route | keys | Note |
+|---|---|---|---|
+| `/profile/:username` | `/profile/:username` | 2 | public layout from the captured profile body + real latest-generations preview |
+| `/profile/:username/achievements` | `/profile/:username/achievements` | 1 | honest shell (badge null, badges [] in the capture) |
+| `/profile/:username/blogs` | `/profile/:username/blogs` | 1 | honest shell (no blog payload captured) |
+| `/profile/:username/blogs/:slug` | `/profile/:username/blogs/:slug` | 1 | live key `…/blogs_/$slug` (trailing-_ quirk); honest shell |
+| `/profile/:username/generations` | `/profile/:username/generations` | 1 | the user's published FeedPublications (community read-model) |
+| `/profile/:username/projects` | `/profile/:username/projects` | 1 | honest shell; aggregate totals real |
+| `/profile/:username/projects/:projectSlug` | `/profile/:username/projects/:projectSlug` | 1 | honest shell (project detail uncaptured) |
+| `/profile/:username/ranking` | `/profile/:username/ranking` | 1 | honest shell (no leaderboard payload captured) |
+
 ## Alias / disclosure notes (the full list)
 
 1. **`/api` → `/api-docs` (rename).** The live Open Platform page sits at
@@ -184,8 +236,29 @@ path ≠ app path).
 8. **`/contests/:slug/submissions`.** Routed shell with the
    uncaptured-gallery disclosure; the submission-detail permalink
    (`…/submissions/$submissionId`) is deferred.
+9. **`/me/settings` layout (wave 5).** The live settings surface was never
+   captured (inspect-settings.json is a policy-filtered shell) — the
+   sidebar/tab layout and the Overview/Team/More grouping are disclosed
+   clone-side choices; the 14-route list is verbatim from the manifest.
+10. **`/me/settings` mutation affordances (wave 5).** `/fnf/user/settings`,
+    `/fnf/user/profile`, `/fnf/workspaces/settings`, `/fnf/datetime-settings`
+    and `/fnf/banner/settings` are GET 200 with reqBody null on every captured
+    row — the consent switches and edit buttons are inert with visible
+    disclosures; no save mutation is invented.
+11. **`/_private/me/settings/_team/*` flattening (wave 5).** The five team
+    child routes (billing/members/organization/sub-workspaces/
+    unlimited-access-history) live under a pathless `_team` layout on the live
+    tree; the clone flattens them into `/me/settings/*` (the same
+    leading-underscore normalization the gate applies).
+12. **`/profile/:username` layout (wave 5).** The public profile layout is a
+    disclosed clone-side choice (route-manifest only, no surface capture);
+    the data contract is the captured `profile` body verbatim, with
+    `full_name` rendered only when `show_full_name` is true.
+13. **`blogs_/$slug` trailing-_ quirk (wave 5).** The live blog-permalink key
+    `/_private/profile/$username/blogs_/$slug` normalizes to
+    `/profile/:username/blogs/:slug` (the wave-3C gate convention).
 
-## DEFERRED — live routes out of wave 1–3 scope (291 routes, 16 groups)
+## DEFERRED — live routes out of wave 1–5 scope (269 routes, 14 groups)
 
 Grouped with one-line reasons; members listed exhaustively (nothing is hidden —
 the gate reports UNGROUPED routes as errors, and there are none).
@@ -250,26 +323,6 @@ Studio + jobs API) is the clone's only generation path by design.
 · `/flow/mixed-media` · `/flow/photodump` · `/flow/photodump/character`
 · `/flow/photodump/generation` · `/flow/photodump/template`
 · `/flow/shorts-studio` · `/flow/speech` · `/flow/speech/prompt`
-
-### settings-account (14)
-Account/billing/team settings surface uncaptured (inspect-settings.json is a
-404 capture); wave 4+.
-
-`/me/settings` · `/me/settings/billing` · `/me/settings/cancel`
-· `/me/settings/gift` · `/me/settings/members` · `/me/settings/onboarding`
-· `/me/settings/organization` · `/me/settings/promo`
-· `/me/settings/referrals` · `/me/settings/sessions`
-· `/me/settings/sub-workspaces` · `/me/settings/subscription`
-· `/me/settings/unlimited-access-history` · `/me/settings/usage`
-
-### profile-pages (8)
-Per-creator public profile pages (blogs, rankings, projects, achievements)
-uncaptured — the community creators tab carries the clone's creator surface.
-
-`/profile/:username` · `/profile/:username/achievements`
-· `/profile/:username/blogs` · `/profile/:username/blogs/:slug`
-· `/profile/:username/generations` · `/profile/:username/projects`
-· `/profile/:username/projects/:projectSlug` · `/profile/:username/ranking`
 
 ### academy-children (7)
 Academy course catalog/player/certificate/saved surfaces uncaptured — wave-3C
@@ -402,17 +455,23 @@ catch-the-pulse collection) — wave 4+ backlog; every member is listed.
 · `/post/:postId` · `/publications/:publicationId` · `/share/:id`
 · `/share/folder` · `/verify/:serial`
 
-## Verification (post-fix, this run)
+## Verification (wave-5 run)
 
-- `bun scripts/route-parity.mjs` → **exit 0** (MISSING 0 · EXTRA 0 ·
-  curation errors 0 · ungrouped 0)
+- `bun scripts/route-parity.mjs` → **exit 0** (IMPLEMENTED 62 · MISSING 0 ·
+  EXTRA 0 · DEFERRED 269 in 14 groups · curation errors 0 · ungrouped 0)
 - `bun run lint` → 0 · `bunx tsc --noEmit` → 0
-- New route curls: `/contests/higgsfield-global-film-festival/submissions`,
-  `/contests/higgsfield-seedance-2-contest/submissions`,
-  `/contests/make-your-action-scene/submissions` → 200 (SSR carries
-  "Submissions", "N projects submitted", the demo-scope disclosure, and the
-  real `submissions_count` — 8,752 for make-your-action-scene);
-  `/contests/unknown-xyz/submissions` → 404 (`notFound()`)
-- 22-route regression sweep (all wave-3 surfaces + `/`, `/community`,
-  `/generate/*`) → all 200; test battery on a clean :3111 server:
-  **20 pass / 0 fail / 121 expects**
+- Wave-5 route curls on :3111: all 14 `/me/settings*` routes → 200 authed
+  (guest renders the sign-in gate); all 8 `/profile/demo_creator*` routes →
+  200 public; `/profile/no-such-user{,/generations}` → 404 (`notFound()`);
+  `GET /api/profile/radiatingcapybara1609` → 200 (captured-operator fixture
+  body), `GET /api/profile/unknown` → 404
+- SSR evidence greps: the settings index carries the consent labels
+  (Media/Audio/Character sheets/AI influencer/Supercomputer LLM consent) and
+  the username; the profile page carries the seeded username
+  (`demo_creator`, `radiatingcapybara1609`) with `full_name` correctly hidden
+  while `show_full_name` is false
+- Wave-3 verification record (post-C6-fix run, kept for history):
+  `/contests/*/submissions` curls → 200 with the real `submissions_count`;
+  `/contests/unknown-xyz/submissions` → 404; 22-route regression sweep → all
+  200; battery 20 pass / 0 fail / 121 expects at the time (the wave-4 battery
+  superseded it — see docs/verify-report.md)
