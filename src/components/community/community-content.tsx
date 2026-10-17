@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Film, FolderGit2 } from "lucide-react";
+import { Film } from "lucide-react";
 import { ContestsTab } from "@/components/community/contests-tab";
 import { CreatorsTab } from "@/components/community/creators-tab";
 import { GenerationsTab } from "@/components/community/generations-tab";
+import { ProjectsTab } from "@/components/community/projects-tab";
 import type { CommunityHeader, CommunityTab } from "@/components/community/types";
 import { WaveThreeStub } from "@/components/community/wave-three-stub";
 import { api } from "@/lib/api";
@@ -117,13 +118,17 @@ export function CommunityContent() {
             subtext="The evidence survey captured the community Discovery tab — creators, contests, open projects and shots — but no originals section. The live Originals entry maps to the original-series route family, whose surface was not captured; nothing is invented here."
           />
         )}
-        {tab === "projects" && (
-          <WaveThreeStub
-            icon={FolderGit2}
-            title="Projects ship in Wave 3"
-            subtext="The projects route family mirrors the live product manifest — it arrives in Wave 3."
-          />
-        )}
+        {/*
+         * Projects tab (HF-W3C C5): the live OPEN PROJECTS section
+         * (inspect-community.json region 3653 — heading 3655, subtitle 3659
+         * 'Standout projects making waves around the web', filter group 3660,
+         * 8 project cards 3673-3783, 'Explore all projects' 3810). The feed is
+         * an editorially curated showcase — not a shape the clone's APIs serve
+         * — so the tab renders the captured cards as a static evidence-based
+         * view with a visible disclosure (src/components/community/
+         * projects-tab.tsx).
+         */}
+        {tab === "projects" && <ProjectsTab />}
       </section>
     </div>
   );

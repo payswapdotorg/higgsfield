@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Sparkles, Users, LayoutGrid, Folder as FolderIcon, Trash2, CreditCard, Menu, Zap, LogOut, Clapperboard, Megaphone, Newspaper, UserRound, Compass, Wand2, LayoutDashboard, Pencil, Music, FolderOpen } from "lucide-react";
+import { Sparkles, Users, LayoutGrid, Folder as FolderIcon, Trash2, CreditCard, Menu, Zap, LogOut, Clapperboard, Megaphone, Newspaper, UserRound, Compass, Wand2, LayoutDashboard, Pencil, Music, FolderOpen, Braces, Plug, GraduationCap, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -99,6 +99,31 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       {link("/edit", "Edit", <Pencil className="h-4 w-4" aria-hidden />)}
       {link("/audio", "Audio", <Music className="h-4 w-4" aria-hidden />)}
       {link("/assets", "Assets", <FolderOpen className="h-4 w-4" aria-hidden />)}
+
+      {/*
+       * Platform group (HF-W3C C5). The live product main nav carries the
+       * same entries — 'MCP' (inspect-mcp.json link 7159; inspect-academy.json
+       * 23915; inspect-contests.json 6797), 'API' (7162 / 23918 / 6800),
+       * 'Academy New' (7177 / 23933 / 6815 — the 'New' badge is a live promo
+       * state, not rendered), and a standalone 'Contests' entry (7193 / 23949
+       * / 6831 — cited per the wave-3C order's Contests-nav rule). Grouping
+       * them under a "Platform" heading mirrors the Studios/Tools layout
+       * convention (the live sidebar is a flat list; disclosed in
+       * docs/wave-3c-worker-worklog.md).
+       *
+       * Clone-side mappings (disclosed): 'API' → /api-docs (the live /api
+       * segment is reserved for this build's API route handlers);
+       * 'Contests' → the community contests tab (no standalone /contests
+       * index page exists in the clone; the entry never shows an active
+       * state because the target is a query-string tab).
+       */}
+      <div className="mt-4 px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        Platform
+      </div>
+      {link("/api-docs", "API", <Braces className="h-4 w-4" aria-hidden />)}
+      {link("/mcp", "MCP", <Plug className="h-4 w-4" aria-hidden />)}
+      {link("/academy", "Academy", <GraduationCap className="h-4 w-4" aria-hidden />)}
+      {link("/community?tab=contests", "Contests", <Trophy className="h-4 w-4" aria-hidden />)}
 
       <div className="mt-4 px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
         My generations
