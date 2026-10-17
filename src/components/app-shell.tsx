@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Sparkles, Users, LayoutGrid, Folder as FolderIcon, Trash2, CreditCard, Menu, Zap, LogOut, Clapperboard, Megaphone, Newspaper, UserRound, Compass } from "lucide-react";
+import { Sparkles, Users, LayoutGrid, Folder as FolderIcon, Trash2, CreditCard, Menu, Zap, LogOut, Clapperboard, Megaphone, Newspaper, UserRound, Compass, Wand2, LayoutDashboard, Pencil, Music, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +80,25 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       {link("/ads-studio", "Ads Studio", <Megaphone className="h-4 w-4" aria-hidden />)}
       {link("/marketing-studio", "Marketing Studio", <Newspaper className="h-4 w-4" aria-hidden />)}
       {link("/ai-influencer-studio", "AI Influencer", <UserRound className="h-4 w-4" aria-hidden />)}
+
+      {/*
+       * Tools group (HF-W3B B6). The live product mega-menu carries the same
+       * entries: 'Effects' (inspect-effects.json link 19937), 'Canvas' (19963),
+       * 'Edit' (19954), 'Audio' (19906), and 'Folder icon Assets' (19977) —
+       * the Assets entry renders with a folder icon in the live nav (image
+       * 19978 'Folder icon' in the same capture). Grouping them under a
+       * "Tools" heading mirrors the packet-ordered layout (like the Studios
+       * group above — the live sidebar is a flat list; disclosed in
+       * docs/wave-3b-worker-worklog.md).
+       */}
+      <div className="mt-4 px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+        Tools
+      </div>
+      {link("/effects", "Effects", <Wand2 className="h-4 w-4" aria-hidden />)}
+      {link("/canvas", "Canvas", <LayoutDashboard className="h-4 w-4" aria-hidden />)}
+      {link("/edit", "Edit", <Pencil className="h-4 w-4" aria-hidden />)}
+      {link("/audio", "Audio", <Music className="h-4 w-4" aria-hidden />)}
+      {link("/assets", "Assets", <FolderOpen className="h-4 w-4" aria-hidden />)}
 
       <div className="mt-4 px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
         My generations

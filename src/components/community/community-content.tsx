@@ -95,11 +95,26 @@ export function CommunityContent() {
         {tab === "generations" && <GenerationsTab />}
         {tab === "contests" && <ContestsTab />}
         {tab === "creators" && <CreatorsTab />}
+        {/*
+         * Originals tab (HF-W3B B6 decision): left as a stub — the evidence
+         * does NOT support an originals publications view. The captured
+         * community surface (inspect-community.json, 969 nodes) is the live
+         * Discovery tab (nav links 3437-3443 'Discovery'/'Projects'/'Shots'/
+         * 'Creators') whose sections are FEATURED CREATORS / Grants /
+         * CONTESTS / OPEN PROJECTS / SHOTS BY CREATORS / CREATOR PARTNERSHIP
+         * PROGRAM / CREATOR HUB / DISCORD COMMUNITY — no originals section,
+         * and the live community page carries no originals tab. The clone's
+         * feed API (/api/community/generations/feed) already serves the
+         * generations tab (the SHOTS BY CREATORS equivalent); re-serving it
+         * under "originals" would mislabel content. The live 'Originals'
+         * mega-menu entry (inspect-effects.json link 19966) maps to the
+         * /(public)/original-series route family, which was not captured.
+         */}
         {tab === "originals" && (
           <WaveThreeStub
             icon={Film}
-            title="Originals ship in Wave 3"
-            subtext="The originals route family mirrors the live product manifest — it arrives in Wave 3."
+            title="Originals surface not captured"
+            subtext="The evidence survey captured the community Discovery tab — creators, contests, open projects and shots — but no originals section. The live Originals entry maps to the original-series route family, whose surface was not captured; nothing is invented here."
           />
         )}
         {tab === "projects" && (
