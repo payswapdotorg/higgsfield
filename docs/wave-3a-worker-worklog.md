@@ -166,6 +166,18 @@ dev server log                        → all new routes compiled + rendered 200
                                           no errors attributable to this branch
 ```
 
+Re-verification note (post-commit): a back-to-back repeat of the test battery
+against the same long-lived dev server hit SQLite write contention (the
+pre-existing wave-2 f-worker vs test-purge interaction: purging a job
+mid-processing leaves the in-process worker P2025-error-looping, which then
+P1008-timeouts the next run's `db.user.deleteMany()` cleanup hooks — 0 code
+relation to this frontend-only branch). After a clean dev-server relaunch
+(`bunx next dev -p 3111`, same command as the packet's), the full battery was
+re-run and is green: lint 0 · tsc 0 · all 12 routes 200 · SSR greps pass ·
+tests 20 pass / 0 fail (121 expects, 9.8s) · zero f-worker errors in the fresh
+dev log after the run. Reported to the TL as pre-existing test-harness
+behavior outside this branch's boundary (not fixed per file-boundary law).
+
 ## DISCLOSURES (every stub / clone-side invention)
 
 1. **StudioGate renders children while the session query is loading.** The
@@ -264,5 +276,11 @@ Explore, per the packet's shared-file allowance).
 
 ## Breakage outside boundary
 
-None observed. The dev-server log shows pre-existing prisma P2025 noise from
-the test suite's delete/purge race (also present at baseline; tests pass).
+1. **Pre-existing f-worker vs test-purge interaction (wave-2 code, NOT touched
+   by this branch):** running the test battery twice back-to-back against the
+   same dev server can wedge the in-process generation worker
+   (`src/server/worker.ts` — P2025 updating a purged job → error loop → SQLite
+   write contention → P1008 cleanup timeouts on the next run). Cure observed:
+   restart the dev server; the battery then passes 20/20. Reported, not fixed
+   (file-boundary law).
+2. No other breakage observed outside the 3A file set.
