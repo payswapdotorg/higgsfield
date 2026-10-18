@@ -28,12 +28,27 @@
 import { db } from "@/lib/db";
 import type { Generation, Prisma } from "@prisma/client";
 import { mockAdapter } from "./adapters/mock-adapter";
+import { influencerAdapter } from "./adapters/influencer-adapter";
 import type { AdapterResult, ModelAdapter } from "./adapters/types";
 
-const ADAPTERS: Record<string, ModelAdapter> = {
-  mock: mockAdapter,
-};
-const DEFAULT_ADAPTER = "mock";
+/**
+ * HF-W7: adapter selection is per-job — influencer jobSetTypes route to the
+ * pluggable influencer provider layer (mock/openrouter/zai image engines,
+ * mock/dashscope/zai motion engines, env-gated in server/influencer/index.ts);
+ * every other jobSetType keeps the proven mockAdapter. Both adapters implement
+ * the same ModelAdapter contract, so the CAS/retry/terminal machinery below is
+ * untouched (wave-4/5 laws preserved: no interactive transactions on the hot
+ * path, CAS-guarded state writes, [f-worker] logging).
+ */
+const INFLUENCER_JOB_SET_TYPES = new Set([
+  "influencer_portrait",
+  "influencer_fullbody",
+  "influencer_motion",
+]);
+
+function adapterForJob(job: Generation): ModelAdapter {
+  return INFLUENCER_JOB_SET_TYPES.has(job.jobSetType) ? influencerAdapter : mockAdapter;
+}
 
 const TICK_INTERVAL_MS = 200;
 const MAX_BACKOFF_SECONDS = 60;
@@ -133,7 +148,7 @@ async function casUpdate(
 }
 
 async function runJob(job: Generation): Promise<void> {
-  const adapter = ADAPTERS[DEFAULT_ADAPTER];
+  const adapter = adapterForJob(job);
   let result: AdapterResult;
   try {
     result = await adapter.run(job);
