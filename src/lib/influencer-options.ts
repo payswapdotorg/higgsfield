@@ -327,10 +327,18 @@ export function validateSpec(input: unknown): SpecValidation {
     if (typeof value !== "string") {
       return { ok: false, error: `spec setting '${key}' must be a string` };
     }
-    if (!setting.options.includes(value)) {
+    // HF-W7 fix: the API contract accepts fully-resolved specs (defaultSpec()/
+    // randomizeSpec() output) — an explicit value equal to the setting's default
+    // is valid. The curated 18 default to "Any", which is not an option in their
+    // lists, so the allowed set is options ∪ {default} (character_type's default
+    // "Average" is already among its options — unchanged behavior).
+    const allowed = setting.options.includes(setting.default)
+      ? setting.options
+      : [setting.default, ...setting.options];
+    if (!allowed.includes(value)) {
       return {
         ok: false,
-        error: `invalid value '${value}' for spec setting '${key}' — allowed: ${setting.options.join(", ")}`,
+        error: `invalid value '${value}' for spec setting '${key}' — allowed: ${allowed.join(", ")}`,
       };
     }
     spec[setting.key] = value;
