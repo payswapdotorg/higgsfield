@@ -1,12 +1,15 @@
-# HF Studio — clean-room Higgsfield product clone (Waves 1–4 complete, Wave 5 account+profile surfaces)
+# HF Studio — clean-room Higgsfield product clone (Waves 1–7.2 complete · deployed)
 
 A working clone of the **higgsfield.ai product** (the AI-native creative suite — studios,
 generation pipeline, community, platform pages), reverse-engineered from live evidence and
 built wave-by-wave: wave 1 (app shell + auth + composer + projects) · wave 2 (generation
 pipeline + credits + community feed) · wave 3 (the wider product surface) · wave 4
 (production hardening: SQLite contention fix, job retries, rate limiting, health probe,
-verify battery) · wave 5 (account settings + public profiles). Next.js 16 App Router ·
-TypeScript · Tailwind 4 · shadcn/ui · Prisma + SQLite · TanStack Query · Zustand.
+verify battery) · wave 5 (account settings + public profiles) · wave 6 (Postgres/Neon port,
+Vercel-deployed) · wave 7 (AI Influencer studio: character sheets + wan2.2 motion; 7.1
+credit-free Cloudflare Workers AI image engine; 7.2 motion submit compaction). Live at
+**https://higgsfield.flauz-broker.workers.dev** (Vercel + Neon). Next.js 16 App Router ·
+TypeScript · Tailwind 4 · shadcn/ui · Prisma + Postgres (Neon) · TanStack Query · Zustand.
 
 ## What runs here
 
@@ -142,7 +145,7 @@ job id; `?purge=1` hard delete) · `/api/jobs/accessible` · `/api/jobs/{id}/res
 `/api/community/{generations/feed,trending,discovery/creators,discovery/header,contests}`
 (+`/[slug]`) · `/api/health`. 401 body is exactly `{"detail":"Invalid or expired token"}` (§1d).
 
-## Data model (Prisma + SQLite)
+## Data model (Prisma + Postgres/Neon — wave 6)
 
 `User`, `Folder` (“Project” in product language), `Generation` (the job: model/version,
 dimensions, `batchSize`, `status`, `attempt`, `seed`, `cost`, `creditSpend` JSON, notices
@@ -155,7 +158,8 @@ JSON, soft-delete), `CreditPool` (`wallet|daily|model:<slug>`), `CreditLedger`,
 
 ```bash
 bun install
-bun run db:push     # create/patch the SQLite schema (idempotent)
+export DATABASE_URL="postgresql://user:pass@host/db?sslmode=require"  # Postgres required since wave 6 — Neon free tier works
+bun run db:push     # create/patch the schema (idempotent)
 bun run db:seed     # idempotent demo data
 bun run dev         # dev server on :3000
 ```
