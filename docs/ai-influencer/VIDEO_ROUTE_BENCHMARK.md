@@ -1,8 +1,8 @@
-# Video route benchmark — LIVE MEASURED (Task 77-78 station probes)
+# Video route benchmark — LIVE MEASURED (Task 77-78 station probes; Task 86 station measurements)
 
-> Law: measured numbers only; null stays null. Probe date: 2026-10-17/18 session
-> (worklog Task 77-78), DashScope **intl** endpoint (`dashscope-intl.aliyuncs.com`)
-> with the vaulted key.
+> Law: measured numbers only; null stays null. Probe dates: 2026-10-17/18 session
+> (worklog Task 77-78), 2026-10-18 station measurements (worklog Task 86), DashScope
+> **intl** endpoint (`dashscope-intl.aliyuncs.com`) with the vaulted key.
 
 ## Measured results
 
@@ -68,3 +68,52 @@ Parameter constraints (probe-verified): `size` must be one of `832*480`, `480*83
 
 `HF_VIDEO_PROVIDER` = `dashscope` (production — works everywhere incl. Vercel) | `zai`
 (sandbox alt, cogvideox-3) | `mock` (tests; **default**).
+
+## Task 86 station measurements (2026-10-18)
+
+Live-verified problem on the production Vercel deployment (Task 84's deploy,
+`HF_VIDEO_PROVIDER=dashscope`, public URL): the motion pipeline (wan2.2-i2v)
+fails at SUBMIT when the reference portrait is a large data URI — while the
+same large body flies from the station sandbox. All facts below are
+live-measured; nothing invented.
+
+| Observation | Egress | Result | Wall time | Notes |
+|---|---|---|---|---|
+| Motion submit, real portrait reference (JPEG data URI ≈625KB decoded, ≈840KB JSON body) | **Vercel production** | **FAIL — two consecutive failures**, job error verbatim: `dashscope submit: network error — The operation was aborted due to timeout` | ≥60 s (abort fires) | The provider's own `AbortSignal.timeout(60_000)` fires; the function itself survives ≥60 s |
+| The SAME ~815KB JSON body | station sandbox → dashscope-intl | **task accepted** | **0.66 s** | Body size is not the problem at the gateway itself |
+| Motion submit, ~3KB body (mock SVG reference, Task 84) | **Vercel production** | **succeeded** (task submitted + polled; the task FAILED only on the non-raster input) | n/a (not recorded) | Small bodies pass from Vercel fine |
+| Station probe task `8fdf18d0` — real 611KB klein JPEG as `img_url` | station sandbox → dashscope-intl | **SUCCESS — real MP4 produced** | **~40 s** | The engine itself is healthy |
+
+**Conclusion (large-body egress throttle):** dashscope-intl (Singapore)
+throttles/stalls large POST bodies from Vercel us-east-1 egress; small bodies
+pass. The engine, the async task flow, and the key are all fine — only the
+transport of bulky bodies from Vercel is the problem.
+
+### Compaction mitigation (Task 86 — `src/server/influencer/dashscope-provider.ts`)
+
+Before building the submit body, `animate()` compacts the reference when it is
+a bulky data URI:
+
+- Applies only when `referenceImage` starts with `data:` AND its decoded byte
+  size exceeds the threshold (https URLs pass through verbatim).
+- Env knob `HF_DASHSCOPE_REF_MAX_KB` (default **220**): the max decoded KB
+  allowed through uncompacted; a value ≤ 0 disables compaction entirely.
+- Compaction: `sharp` (dynamically imported — never loaded on the mock/test
+  path) `resize(768, 768, { fit: "inside", withoutEnlargement: true })` →
+  `jpeg({ quality: 82 })` → re-wrapped as `data:image/jpeg;base64,…`.
+- **Never-fail guard**: any sharp import/processing error WARNs
+  (`[f-influencer] dashscope reference compaction failed — passing original
+  through: …`) and the ORIGINAL reference is submitted — compaction must never
+  block the pipeline. A compact that is not smaller than the original keeps the
+  original.
+- Success log (format; the numbers are the measured original → compacted
+  sizes): `[f-influencer] dashscope reference compacted: 625KB → 118KB
+  (wan2.2 submit body; Vercel-egress throttle mitigation, Task 86)`.
+
+### Not yet measured (null, Task 86)
+
+- Vercel-side re-verification of the mitigated submit (the compacted body
+  passing the egress throttle from Vercel) — null until the station re-runs
+  the live motion path post-deploy.
+- Compacted-reference motion quality vs the full-size reference (768px / q82
+  identity fidelity on real portraits) — null until the live re-run.
