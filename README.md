@@ -45,6 +45,28 @@ credits, a `model:face_swap` pool and a 5-generation `nano_banana_2` touring gra
 anchors). The clone's auth is a session-cookie stand-in for Clerk (disclosed clone-side
 choice — see ARCHITECTURE.md).
 
+## Wave 6 — Postgres/Neon port (Vercel deployment)
+
+Infrastructure-only wave: the Prisma datasource moved **`sqlite → postgresql` (Neon)** and
+the build is Vercel-deploy-ready — **zero route or behavior change**: route parity
+unchanged at **62 / 0 / 0** (269 deferred in 14 groups), battery **28/28**
+(23 api + 4 hardening + 1 e2e).
+
+- `prisma/schema.prisma` provider is now `postgresql` — every environment (local dev
+  included) needs a Postgres `DATABASE_URL` (Neon in the station recipe). The
+  JSON-in-String columns are deliberately kept as `String` — behavior preserved
+  byte-for-byte (see docs/wave-6-worker-worklog.md).
+- Deploy scripts: root `postinstall` runs `prisma generate` (Vercel-safe — bun may skip
+  dependency postinstalls, the root script always runs); `bun run build` is a plain
+  `next build` (the Vercel build command); `HF_STANDALONE=1 bun run build:standalone` is
+  the local self-hosting recipe (standalone output is gated OFF for Vercel);
+  `outputFileTracingIncludes` carries `node_modules/.prisma/**` into the serverless
+  bundles (dynamic requires Next's tracer cannot see); the SQLite pragmas are gated on
+  `file:` URLs, so PG boots with zero pragma warns.
+- Full Vercel + Neon runbook — env vars (pooled-vs-direct `DATABASE_URL`,
+  `HF_AUTH_SECRET`, `MOCK_*`, `JOBS_RATE_LIMIT_PER_MIN`), build mechanics, one-time seed
+  procedure, serverless job-pipeline semantics, the local standalone recipe: **docs/DEPLOYMENT.md**.
+
 ## Generation pipeline (wave-2 core, hardened in wave 4)
 
 - `POST /api/jobs/{model}` validates the §1a request body **verbatim** (strict zod schema —
