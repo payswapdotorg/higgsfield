@@ -3,7 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  // HF-W6: provider moved sqlite → postgresql (Neon) for the Vercel-serverless port.
+  // Infrastructure-only change — every column type is PG-compatible as-is. The
+  // JSON-in-String columns (badges, inputImages, creditSpend, winner,
+  // someContestants, judges, unlimitedSettings, notices) are deliberately NOT
+  // converted to Prisma `Json`/jsonb: the JSON-in-a-TEXT-column convention
+  // predates this port (SQLite has no list columns) and is kept to minimize the
+  // diff and preserve behavior byte-for-byte.
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
