@@ -5,24 +5,33 @@
  * Runs, in order, and prints a PASS/FAIL table (exit 0 iff every row PASSes):
  *   1. lint          — `bun run lint` (eslint, 0 errors expected)
  *   2. tsc           — `bunx tsc --noEmit`
- *   3. build         — `bun run build`. If the standalone-COPY step fails in-sandbox (the
- *                      wave-2 honest-build-config note: `next build` can compile cleanly
- *                      while the trailing `cp -r … .next/standalone/…` cannot run), the
- *                      failure line is reported and the battery CONTINUES — but the row is
- *                      graded FAIL (no fake passes). A dev server sharing `.next` is stopped
- *                      first because `next build` and `next dev` conflict on that directory.
+ *   3. build         — `bun run build` (wave-6: plain `next build` — the Vercel build
+ *                      command; the standalone-copy step moved to `build:standalone`,
+ *                      gated on HF_STANDALONE=1). A dev server sharing the dist dir is
+ *                      stopped first because `next build` and `next dev` conflict there.
  *   4. route-parity  — `bun scripts/route-parity.mjs` (wave-3 exit gate, exit 0 expected)
- *   5. battery        — clean-server test run: pkill the :3111 dev server, relaunch it,
+ *   5. battery        — clean-server test run: pkill the port's dev server, relaunch it,
  *                      wait for HTTP 200 on /api/health (timeout 90 s), then
  *                      `bun test tests/api.test.ts tests/e2e.test.ts tests/hardening.test.ts`
  *                      with TEST_BASE_URL. THE SERVER IS LEFT RUNNING at exit.
  *
- * Environment pinning (disclosed): the server and the test process are launched with an
- * explicit DATABASE_URL so the repo-local SQLite file is used even when the invoking shell
- * carries an unrelated ambient DATABASE_URL (this sandbox's shells export one pointing at
- * another project's DB — the historical cause of "which database is this" confusion).
+ * Environment passthrough (HF-W6 revision of the wave-4 pinning): the server and the test
+ * process are launched with an explicit DATABASE_URL that PASSES THROUGH an externally-set
+ * value, falling back to the repo-local SQLite file only when unset — so the station can run
+ * the whole battery against Neon (`DATABASE_URL='postgres://…' node scripts/verify.mjs`) or
+ * against SQLite (`DATABASE_URL='file:../db/hf.db' node scripts/verify.mjs`). CAUTION: this
+ * sandbox's shells export an ambient DATABASE_URL pointing at another project's DB (the
+ * wave-4 hijack) — since wave-6 that ambient value is NO LONGER masked, so a bare
+ * `node scripts/verify.mjs` would target the ambient DB and fail loudly (provider mismatch).
+ * Always invoke with an explicit DATABASE_URL.
  * MOCK_ADAPTER_MS=50 on the battery server is the e2e-prescribed recipe
  * (tests/e2e.test.ts header) and keeps the retry walks inside the waitFor windows.
+ *
+ * HF-W6 port note: the battery dev server binds VERIFY_PORT (default 3111). If that port is
+ * already occupied — e.g. by the station's standalone prod server — the battery FAILS
+ * honestly instead of silently grading against the squatter's responses; pass
+ * VERIFY_PORT=<scratch port> to relocate. HF_DIST_DIR likewise relocates the build directory
+ * (see next.config.ts) so the build step cannot wipe a live standalone server's .next.
  *
  * Assumptions: `bun install`, `bun run db:push`, `bun run db:seed` have run (README
  * quickstart). Repo writes: NONE — this script only prints (the committed report is
@@ -34,9 +43,12 @@ import { openSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const PORT = 3111;
+// HF-W6: DATABASE_URL passes through when set externally (Neon or explicit SQLite),
+// falling back to the repo-local SQLite file only when unset.
+const DATABASE_URL = process.env.DATABASE_URL ?? "file:../db/hf.db"; // fallback is relative to prisma/schema.prisma → repo-local db/hf.db
+// HF-W6: battery server port is relocatable (station's prod server holds :3111).
+const PORT = Number(process.env.VERIFY_PORT ?? 3111);
 const BASE_URL = `http://localhost:${PORT}`;
-const DATABASE_URL = "file:../db/hf.db"; // relative to prisma/schema.prisma → repo-local db/hf.db
 const DEV_LOG = "/tmp/hf-verify-dev.log";
 
 /** Run a shell command in ROOT, capturing combined stdout+stderr and the exit code. */
@@ -78,6 +90,18 @@ function record(check, status, detail) {
 async function killDevServer() {
   await sh(`pkill -f "next dev -p ${PORT}" || true`, 10_000);
   await sleep(1500);
+}
+
+/** True when something already listens on the battery port (a squatter would answer
+ *  /api/health with 200 and the battery would silently grade against IT — a fake pass).
+ *  HF-W6: honest FAIL instead; relocate with VERIFY_PORT. */
+async function portOccupied() {
+  try {
+    await fetch(`${BASE_URL}/api/health`, { signal: AbortSignal.timeout(2000) });
+    return true; // something answered — port is taken
+  } catch {
+    return false;
+  }
 }
 
 async function waitForServer(timeoutMs = 90_000) {
@@ -123,18 +147,9 @@ async function main() {
     await killDevServer();
     const { code, out } = await sh("bun run build", 600_000);
     if (code === 0) {
-      record("build", "PASS", "next build + standalone copy exit 0");
+      record("build", "PASS", "next build exit 0 (wave-6: plain next build — standalone copy moved to build:standalone)");
     } else {
-      // Report the actual failure lines. If the compile itself finished (route table
-      // printed) and only the standalone-copy step failed, say so — but grade FAIL.
-      const compiled = /\(Static\)|\(Dynamic\)|Compiled successfully/.test(out);
-      const copyLine = out
-        .split("\n")
-        .filter((l) => /cp:|standalone|No such file or directory/i.test(l))
-        .slice(0, 2)
-        .join(" ⏎ ");
-      const kind = compiled && copyLine ? "standalone-copy step" : "next build";
-      record("build", "FAIL", `${kind} failed: ${copyLine || lastLines(out, 2)}`);
+      record("build", "FAIL", lastLines(out, 3));
     }
   }
 
@@ -153,6 +168,13 @@ async function main() {
   // ── 5. clean-server battery (leaves the server RUNNING) ─────────────────────────
   {
     await killDevServer();
+    if (await portOccupied()) {
+      record(
+        "battery",
+        "FAIL",
+        `port :${PORT} is already occupied (e.g. the station's standalone prod server) — a spawned dev server could not own it and the tests would grade against the squatter; relocate with VERIFY_PORT=<port>`
+      );
+    } else {
     const logFd = openSync(DEV_LOG, "a");
     const server = spawn("bunx", ["next", "dev", "-p", String(PORT)], {
       cwd: ROOT,
@@ -174,6 +196,7 @@ async function main() {
       const files = (out.match(/Ran \d+ tests across \d+ files/) || [""])[0];
       if (code === 0) record("battery", "PASS", `${counts} · ${files} · server on :${PORT} left running`);
       else record("battery", "FAIL", `${counts} · ${lastLines(out, 6)}`);
+    }
     }
   }
 
