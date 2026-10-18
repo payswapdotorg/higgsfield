@@ -67,6 +67,35 @@ unchanged at **62 / 0 / 0** (269 deferred in 14 groups), battery **28/28**
   `HF_AUTH_SECRET`, `MOCK_*`, `JOBS_RATE_LIMIT_PER_MIN`), build mechanics, one-time seed
   procedure, serverless job-pipeline semantics, the local standalone recipe: **docs/DEPLOYMENT.md**.
 
+## Wave 7 — AI Influencer
+
+The AI Influencer studio is functionally real now: character persistence (new `Character`
+model + `Generation.characterId`), the real **19-setting character builder** (ev:
+Character-type options + 18 spec: curated lists, reference upload, seeded Randomize), the
+atomic **two-job character-sheet pipeline** (portrait + full-body at the captured **1.125
+credits** — ev: node 2252 — union-pre-checked and burned in one transaction), **motion
+presets → wan2.2 image-to-video jobs** (5 credits, portrait-preconditioned), and a
+pluggable **provider layer** routed through the existing worker CAS/retry machinery.
+Route parity unchanged at **62 / 0 / 0** (269 deferred in 14 groups) — no pages added or
+removed; battery **47/47** (23 api + 1 e2e + 4 hardening + **19 influencer**).
+
+- Credit amount columns widened **Int → Float** (`Generation.cost`, pool/ledger
+  balances, grant used) — lossless (all prior values integral), because the captured
+  influencer cost is fractional (1.125/generate, 0.5625 per sheet job; Int silently
+  truncates it — probe-verified).
+- Provider matrix, env-gated with **mock defaults** so the battery stays deterministic:
+  image = `HF_IMAGE_PROVIDER` (`mock` | `openrouter` — Vercel prod | `zai` — sandbox) ·
+  video = `HF_VIDEO_PROVIDER` (`mock` | `dashscope` wan2.2-i2v — works everywhere incl.
+  Vercel | `zai`). A non-mock selection without its key falls back to mock with a warn.
+- New API family (API surface, not page-parity entries): `/api/characters` (+ `/[id]`,
+  `/[id]/generate`, `/[id]/motion`) — snake_case bodies, strict spec/reference validation,
+  §1a-atomic credit burns, the character-detail GET as the polling/thaw route.
+- Full delivery record, station verification record + 18 disclosures:
+  **docs/wave-7-worker-worklog.md** · reference analysis, ADRs, measured engine
+  benchmarks, license review: **docs/ai-influencer/** · deployment env vars:
+  **docs/DEPLOYMENT.md** (the wave-6 table — the wave-7 provider gates above are
+  documented in the wave-7 worklog until the runbook is extended).
+
 ## Generation pipeline (wave-2 core, hardened in wave 4)
 
 - `POST /api/jobs/{model}` validates the §1a request body **verbatim** (strict zod schema —
