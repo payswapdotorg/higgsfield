@@ -229,16 +229,34 @@ function MotionVideoStage({ job }: { job: JobJson | null }) {
     >
       <div className="relative aspect-video w-full bg-muted">
         {job?.status === "done" && job.asset_url ? (
-          <video
-            src={job.asset_url}
-            controls
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 h-full w-full object-cover"
-            aria-label="Motion video player"
-          />
+          // Mock-fixture fallback (station browser finding 2026-10-18): the mock
+          // influencer provider resolves kind:"video" jobs to an SVG data URI,
+          // which <video> cannot play (native "Unable to play media" UI). Render
+          // it as a labeled poster <img> instead — production (DashScope wan2.2)
+          // returns a real MP4 asset_url and keeps the <video> path unchanged.
+          job.asset_url.startsWith("data:image/") ? (
+            <div className="absolute inset-0">
+              <img
+                src={job.asset_url}
+                alt="Motion video poster (mock provider asset)"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <p className="absolute inset-x-0 bottom-0 bg-background/85 px-2 py-1 text-center text-[11px] text-muted-foreground backdrop-blur">
+                spec: mock provider asset — production (DashScope wan2.2) renders a real MP4 video
+              </p>
+            </div>
+          ) : (
+            <video
+              src={job.asset_url}
+              controls
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 h-full w-full object-cover"
+              aria-label="Motion video player"
+            />
+          )
         ) : inFlight ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center">
             <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" aria-hidden />
