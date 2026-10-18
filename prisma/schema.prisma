@@ -55,6 +55,27 @@ model User {
   ledger      CreditLedger[]
   freeGens    FreeGensGrant[]
   settings    UserSettings?
+  characters  Character[]
+}
+
+/// HF-W7 — AI Influencer characters (/ai-influencer-studio persistence).
+/// `spec` is the 19-setting option spec (src/lib/influencer-options.ts) stored as a
+/// JSON string — the repo's JSON-in-a-TEXT-column convention (same as
+/// Generation.inputImages / creditSpend; see the datasource header note).
+/// `referenceImage` is the optional uploaded face reference (data:image/… URI).
+/// No asset columns: portrait/full-body assets resolve through the linked
+/// Generation rows (characterId) so the job pipeline stays the single asset truth.
+model Character {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  spec           String
+  referenceImage String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
 }
 
 /// HF-W5 — the /fnf/user/settings consent body, verbatim key set (evidence:
@@ -125,7 +146,15 @@ model Generation {
   /// attempt; a retryable failure re-enqueues the job once with attempt = 2.
   attempt      Int       @default(1)
   seed         Int
-  cost         Int
+  /// HF-W7: Int → Float widening (see the credit-amounts block comment below) — the
+  /// AI Influencer evidence credit cost is fractional (1.125 credits per generate,
+  /// evidence node 2252), so per-job costs may be fractional (0.5625).
+  cost         Float
+  /// HF-W7 (additive): links influencer jobs (influencer_portrait / influencer_fullbody /
+  /// influencer_motion jobSetTypes) to their Character. Nullable + no FK on purpose —
+  /// hard-deleting a Character leaves the generations in place with a dangling id
+  /// (jobToJson is unaffected; asset resolution treats the dangling id as "no character").
+  characterId  String?
   creditSpend  String    @default("[]") // JSON [{pool, amount}] — how the cost was funded
   assetUrl     String?
   assetKind    String?
@@ -144,7 +173,22 @@ model Generation {
   @@index([userId, status])
   @@index([folderId])
   @@index([status, createdAt])
+  @@index([characterId])
 }
+
+/// HF-W7 — CREDIT AMOUNT COLUMNS WIDENED Int → Float (DISCLOSED DEVIATION).
+/// The wave-7 AI Influencer surface carries the captured evidence credit cost
+/// 1.125 credits per generate (evidence node 2252 '1.125 credits'), split as two
+/// 0.5625-cost jobs — values the previous Int columns cannot represent (empirically
+/// verified: Prisma silently truncates 0.5625 to 0 on an Int field, corrupting the
+/// burn). Int → Float is a LOSSLESS, NON-DESTRUCTIVE widening: every existing value
+/// is integral and stays bit-exact in float64, so all existing integer assertions
+/// (wallet 0/97, ledger -2, grant used 5 …) hold unchanged. No table or column is
+/// dropped; `prisma db push` applies it as ALTER COLUMN TYPE on four small tables.
+/// Widened columns: Generation.cost, CreditPool.balance, CreditLedger.delta,
+/// CreditLedger.balanceAfter, FreeGensGrant.used. (FreeGensGrant.amount stays Int —
+/// grants are only ever created with integral amounts.)
+/// Mirrors the live product, whose credit costs are demonstrably fractional.
 
 /// Mirrors the §1c per-model credit pools: kind is "wallet" | "daily" | "model:<jobSetType>".
 model CreditPool {
@@ -152,7 +196,8 @@ model CreditPool {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   kind      String
-  balance   Int       @default(0)
+  /// HF-W7: Int → Float widening — see the credit-amounts block comment at Generation.
+  balance   Float     @default(0)
   expiresAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -169,8 +214,9 @@ model CreditLedger {
   poolId       String?
   jobId        String?
   job         Generation? @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  delta        Int
-  balanceAfter Int
+  /// HF-W7: Int → Float widening — see the credit-amounts block comment at Generation.
+  delta        Float
+  balanceAfter Float
   reason       String
   createdAt    DateTime  @default(now())
 
@@ -184,7 +230,9 @@ model FreeGensGrant {
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   amount     Int
-  used       Int       @default(0)
+  /// HF-W7: Int → Float widening — see the credit-amounts block comment at Generation
+  /// (a fractional influencer spend can consume a fractional slice of a grant).
+  used       Float     @default(0)
   jobSetType String
   claimed    Boolean   @default(false)
   expiresAt  DateTime?
