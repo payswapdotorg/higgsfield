@@ -45,11 +45,19 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
  * busy_timeout both return their new value as a row; verified in this environment).
  * $queryRawUnsafe executes all three statements cleanly — identical effect.
  *
+ * HF-W6 GATE (postgres port): the whole block now runs ONLY when DATABASE_URL is a
+ * SQLite file URL (`file:…`) — on the Postgres/Neon datasource (or any non-file URL)
+ * the pragmas are skipped entirely: they are invalid PG SQL, previously failing into
+ * the non-fatal warn path 3× per cold start (semantically wrong + log noise on every
+ * serverless invocation). The WAL/busy_timeout rationale does not transfer anyway —
+ * Postgres has MVCC and its own lock manager, so nothing is lost by skipping.
+ *
  * Runs ONCE per process (globalThis-guarded so dev HMR re-imports do not re-run it),
  * strictly non-fatal per statement: on any error the app runs exactly as before (the
  * worker's tick backoff in src/server/worker.ts is the second half of this fix).
  */
-void applySqlitePragmas()
+const isSqlite = (process.env.DATABASE_URL ?? "").startsWith("file:")
+if (isSqlite) void applySqlitePragmas()
 
 async function applySqlitePragmas(): Promise<void> {
   if (globalForPrisma.__hfSqlitePragmasApplied) return
