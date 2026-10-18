@@ -119,8 +119,12 @@ async function waitForServer(timeoutMs = 90_000) {
 }
 
 function testCounts(out) {
-  const m = out.match(/(\d+) pass\s*\n\s*(\d+) fail/);
-  return m ? `${m[1]} pass / ${m[2]} fail` : "counts unparsed";
+  // HF-W6: aggregate across the sequential per-file summaries ("N pass\nM fail" per file).
+  const sums = [...out.matchAll(/(\d+) pass\s*\n\s*(\d+) fail/g)].reduce(
+    (acc, m) => ({ pass: acc.pass + Number(m[1]), fail: acc.fail + Number(m[2]) }),
+    { pass: 0, fail: 0 }
+  );
+  return sums.pass + sums.fail > 0 ? `${sums.pass} pass / ${sums.fail} fail` : "counts unparsed";
 }
 
 async function main() {
@@ -188,14 +192,34 @@ async function main() {
     if (!ready) {
       record("battery", "FAIL", `dev server on :${PORT} did not answer 200 on /api/health within 90 s (log: ${DEV_LOG})`);
     } else {
-      const { code, out } = await sh(
-        "TEST_BASE_URL=" + BASE_URL + " bun test tests/api.test.ts tests/e2e.test.ts tests/hardening.test.ts",
-        300_000
-      );
-      const counts = testCounts(out);
-      const files = (out.match(/Ran \d+ tests across \d+ files/) || [""])[0];
-      if (code === 0) record("battery", "PASS", `${counts} · ${files} · server on :${PORT} left running`);
-      else record("battery", "FAIL", `${counts} · ${lastLines(out, 6)}`);
+      // HF-W6 (station fix): the three files run SEQUENTIALLY, one bun-test invocation
+      // each, with a per-test --timeout of 30 s. Two disclosed reasons:
+      //   1. Against a remote Postgres (Neon) every server-side statement pays a network
+      //      RTT — a single jobs POST renders in ~2 s — so bun's 5 s DEFAULT per-test
+      //      timeout flakes the pipeline tests purely on wall-clock. 30 s removes the
+      //      flakiness without weakening a single assertion (waitFor deadlines inside
+      //      the tests are unchanged).
+      //   2. A timed-out test leaves zombie poll loops running "between tests"; when the
+      //      next file's beforeEach user-cleanup (deleteMany on the shared test-email
+      //      prefix) races one of those zombies mid-flight, Postgres (unlike SQLite,
+      //      whose single-writer lock serialized this away) surfaces it as an FK 500 on
+      //      tx.generation.create — the exact cascade the station log captured (6 FK
+      //      failures in the first parallel run, 0 when files run sequentially).
+      const FILES = ["api", "e2e", "hardening"];
+      let batteryCode = 0;
+      let batteryOut = "";
+      for (const f of FILES) {
+        const { code: fc, out: fo } = await sh(
+          `TEST_BASE_URL=${BASE_URL} bun test tests/${f}.test.ts --timeout 30000`,
+          300_000
+        );
+        batteryOut += fo + "\n";
+        if (fc !== 0) batteryCode = fc;
+      }
+      const counts = testCounts(batteryOut);
+      const files = (batteryOut.match(/Ran \d+ tests? across \d+ files?/g) || []).join(" · ");
+      if (batteryCode === 0) record("battery", "PASS", `${counts} · ${files} · server on :${PORT} left running`);
+      else record("battery", "FAIL", `${counts} · ${lastLines(batteryOut, 6)}`);
     }
     }
   }
