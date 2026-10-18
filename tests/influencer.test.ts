@@ -23,6 +23,14 @@
  *    wan2.2-i2v-flash, 16:9 1200×672, cost 5, the done portrait asset as
  *    input_images[0], deterministic prompt) with an exact 5-credit burn and
  *    the job reaching done; unknown preset_id → 400; camelCase body → 400.
+ *  - studio E2E (W7-C): the frontend's exact call sequences — the Generate
+ *    button's payload law (randomizeSpec output POSTs + PATCHes cleanly), the
+ *    create→PATCH-reference→generate upload sequence (reference rides into
+ *    both jobs' input_images), the sheet flow ending with portrait/full_body
+ *    asset URLs resolving in BOTH the detail route and the library route
+ *    (decoded mock-provider shape: hf-mock portrait / hf-mock fullbody), the
+ *    motion flow after a done sheet (video job done, hf-mock motion asset,
+ *    exact 20−1.125−5 wallet burn), and DELETE → library empty.
  *
  * NOT covered (disclosed): the H3 per-minute rate limiter (a fixed 60 s window
  * is not deterministically pinnable over HTTP in this battery — wave-4's tests
@@ -35,7 +43,7 @@ import { BASE_URL, db, login, authFetch, waitFor, setPools } from "./helpers";
 import type { CookieJar } from "./helpers";
 import type { JobJson } from "@/lib/job-shape";
 import type { CharacterJson } from "@/lib/character-shape";
-import { defaultSpec, findMotionPreset, type InfluencerSpec } from "@/lib/influencer-options";
+import { defaultSpec, findMotionPreset, randomizeSpec, type InfluencerSpec } from "@/lib/influencer-options";
 import {
   buildFullBodyPrompt,
   buildMotionPrompt,
@@ -501,5 +509,191 @@ describe("motion pipeline — portrait-preconditioned video job", () => {
       body: JSON.stringify({ presetId: "confident-walk" }),
     });
     expect(camel.status).toBe(400);
+  });
+});
+
+describe("studio E2E (W7-C) — the frontend's exact call sequences", () => {
+  /** Decode a mock-provider data URI and assert its labeled SVG payload. */
+  function decodedAsset(uri: string | null | undefined, label: string): string {
+    if (typeof uri !== "string" || !uri.startsWith("data:image/svg+xml;base64,")) {
+      throw new Error(`asset is not a mock SVG data URI: ${String(uri).slice(0, 60)}`);
+    }
+    const decoded = Buffer.from(uri.slice("data:image/svg+xml;base64,".length), "base64").toString("utf8");
+    if (!decoded.includes(`hf-mock ${label}`)) {
+      throw new Error(`decoded asset does not carry the mock '${label}' marker`);
+    }
+    return decoded;
+  }
+
+  test("Generate's payload law — randomizeSpec output POSTs + PATCHes cleanly (19-key echo, full replace)", async () => {
+    const jar = await login("hf-w7-test-e2eroll@hf-test.local", "w7_e2eroll");
+
+    // The Randomize button's output (seeded roll incl. "Any" values) must POST cleanly.
+    const rolled = randomizeSpec(7);
+    const res = await authFetch(jar, "/api/characters", {
+      method: "POST",
+      body: JSON.stringify({ name: "E2E Roll", spec: rolled }),
+    });
+    expect(res.status).toBe(200);
+    const { character } = (await res.json()) as { character: CharacterJson };
+    expect(character.name).toBe("E2E Roll");
+    expect(character.spec).toEqual(rolled);
+
+    // The Generate button's sync pass (PATCH with the current builder state).
+    const nextRoll = randomizeSpec(8);
+    const patch = await authFetch(jar, `/api/characters/${character.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: "E2E Roll 2", spec: nextRoll, reference_image: null }),
+    });
+    expect(patch.status).toBe(200);
+    const { character: updated } = (await patch.json()) as { character: CharacterJson };
+    expect(updated.name).toBe("E2E Roll 2");
+    expect(updated.spec).toEqual(nextRoll);
+
+    // The library route lists it.
+    const list = await authFetch(jar, "/api/characters");
+    const body = (await list.json()) as { characters: CharacterJson[] };
+    expect(body.characters.length).toBe(1);
+    expect(body.characters[0].name).toBe("E2E Roll 2");
+  });
+
+  test("upload flow — create → PATCH reference → generate: the reference rides into both jobs' input_images", async () => {
+    const email = "hf-w7-test-e2eref@hf-test.local";
+    const jar = await login(email, "w7_e2eref");
+    const user = await db.user.findUnique({ where: { email } });
+    if (!user) throw new Error("user missing");
+    await setPools(user.id, [{ kind: "wallet", balance: 10 }]);
+
+    // POST accepts {name?, spec} only — the reference rides in through the PATCH
+    // (the exact client sequence in influencer-studio.tsx's generate()).
+    const character = await createCharacter(jar, { spec: specWith(GEN_SPEC) });
+    const uri = "data:image/png;base64,iVBORw0KGgo=";
+    const patch = await authFetch(jar, `/api/characters/${character.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ reference_image: uri }),
+    });
+    expect(patch.status).toBe(200);
+    const { character: stored } = (await patch.json()) as { character: CharacterJson };
+    expect(stored.reference_image).toBe(uri);
+
+    const res = await authFetch(jar, `/api/characters/${character.id}/generate`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const { jobs } = (await res.json()) as { jobs: JobJson[] };
+    expect(jobs.length).toBe(2);
+    for (const job of jobs) {
+      expect(job.input_images).toEqual([uri]);
+    }
+  });
+
+  test("sheet flow — create → generate → poll detail → both assets resolve in detail AND library (mock shape)", async () => {
+    const email = "hf-w7-test-e2esheet@hf-test.local";
+    const jar = await login(email, "w7_e2esheet");
+    const user = await db.user.findUnique({ where: { email } });
+    if (!user) throw new Error("user missing");
+    await setPools(user.id, [{ kind: "wallet", balance: 10 }]);
+
+    const character = await createCharacter(jar, { name: "E2E Sheet", spec: specWith(GEN_SPEC) });
+    const res = await authFetch(jar, `/api/characters/${character.id}/generate`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+
+    // The character-detail poll route both advances the queue and reports the jobs.
+    await waitFor(() => sheetDone(jar, character.id), 20000, "sheet jobs done (E2E)");
+
+    const detail = (await (await authFetch(jar, `/api/characters/${character.id}`)).json()) as {
+      character: CharacterJson;
+      jobs: JobJson[];
+    };
+    // Non-null strings matching the mock provider's exact asset shape (decoded markers).
+    decodedAsset(detail.character.portrait_asset_url, "portrait");
+    decodedAsset(detail.character.full_body_asset_url, "fullbody");
+    for (const job of detail.jobs) {
+      expect(job.status).toBe("done");
+      expect(job.asset_url).toMatch(/^data:image\/svg\+xml;base64,/);
+    }
+
+    // The library route resolves the same assets (the studio's character strip).
+    const list = (await (await authFetch(jar, "/api/characters")).json()) as {
+      characters: CharacterJson[];
+    };
+    const listed = list.characters.find((c) => c.id === character.id);
+    if (!listed) throw new Error("character missing from library after sheet");
+    expect(listed.portrait_asset_url).toBe(detail.character.portrait_asset_url);
+    expect(listed.full_body_asset_url).toBe(detail.character.full_body_asset_url);
+  });
+
+  test("motion flow after done sheet — video job done with the mock motion asset + exact wallet burn", async () => {
+    const email = "hf-w7-test-e2emotion@hf-test.local";
+    const jar = await login(email, "w7_e2emotion");
+    const user = await db.user.findUnique({ where: { email } });
+    if (!user) throw new Error("user missing");
+    await setPools(user.id, [{ kind: "wallet", balance: 20 }]);
+
+    const character = await createCharacter(jar, { spec: specWith(MOTION_SPEC) });
+    const gen = await authFetch(jar, `/api/characters/${character.id}/generate`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    expect(gen.status).toBe(200);
+    await waitFor(() => sheetDone(jar, character.id), 20000, "sheet jobs done before motion (E2E)");
+
+    const res = await authFetch(jar, `/api/characters/${character.id}/motion`, {
+      method: "POST",
+      body: JSON.stringify({ preset_id: "dance-groove" }),
+    });
+    expect(res.status).toBe(200);
+    const { job } = (await res.json()) as { job: JobJson };
+    expect(job.kind).toBe("video");
+    expect(job.cost).toBe(5);
+
+    await waitFor(async () => {
+      const r = await authFetch(jar, `/api/characters/${character.id}`);
+      const body = (await r.json()) as { jobs: JobJson[] };
+      const motion = body.jobs.find((j) => j.job_set_type === "influencer_motion");
+      return motion?.status === "done";
+    }, 20000, "motion job done (E2E)");
+
+    const final = (await (await authFetch(jar, `/api/characters/${character.id}`)).json()) as {
+      jobs: JobJson[];
+    };
+    const motion = final.jobs.find((j) => j.job_set_type === "influencer_motion");
+    if (!motion) throw new Error("motion job missing from the character detail");
+    expect(motion.status).toBe("done");
+    decodedAsset(motion.asset_url, "motion");
+
+    // Wallet: 20 − 1.125 (sheet) − 5 (motion) = 13.875 — exact.
+    const wallet = await db.creditPool.findUnique({
+      where: { userId_kind: { userId: user.id, kind: "wallet" } },
+    });
+    expect(wallet?.balance).toBe(13.875);
+  });
+
+  test("DELETE → library empty (the studio's delete affordance end-to-end)", async () => {
+    const jar = await login("hf-w7-test-e2edel@hf-test.local", "w7_e2edel");
+    const a = await createCharacter(jar, { name: "Doomed A" });
+    await createCharacter(jar, { name: "Doomed B" });
+
+    const del = await authFetch(jar, `/api/characters/${a.id}`, { method: "DELETE" });
+    expect(del.status).toBe(200);
+    expect(await del.json()).toEqual({ ok: true });
+
+    const mid = (await (await authFetch(jar, "/api/characters")).json()) as {
+      characters: CharacterJson[];
+    };
+    expect(mid.characters.length).toBe(1);
+    expect(mid.characters[0].name).toBe("Doomed B");
+
+    const del2 = await authFetch(jar, `/api/characters/${mid.characters[0].id}`, { method: "DELETE" });
+    expect(del2.status).toBe(200);
+
+    const empty = (await (await authFetch(jar, "/api/characters")).json()) as {
+      characters: CharacterJson[];
+    };
+    expect(empty.characters).toEqual([]);
   });
 });
