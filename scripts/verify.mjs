@@ -12,7 +12,7 @@
  *   4. route-parity  — `bun scripts/route-parity.mjs` (wave-3 exit gate, exit 0 expected)
  *   5. battery        — clean-server test run: pkill the port's dev server, relaunch it,
  *                      wait for HTTP 200 on /api/health (timeout 90 s), then
- *                      `bun test tests/api.test.ts tests/e2e.test.ts tests/hardening.test.ts`
+ *                      `bun test tests/api.test.ts tests/e2e.test.ts tests/hardening.test.ts tests/influencer.test.ts`
  *                      with TEST_BASE_URL. THE SERVER IS LEFT RUNNING at exit.
  *
  * Environment passthrough (HF-W6 revision of the wave-4 pinning): the server and the test
@@ -192,7 +192,7 @@ async function main() {
     if (!ready) {
       record("battery", "FAIL", `dev server on :${PORT} did not answer 200 on /api/health within 90 s (log: ${DEV_LOG})`);
     } else {
-      // HF-W6 (station fix): the three files run SEQUENTIALLY, one bun-test invocation
+      // HF-W6 (station fix): the four files run SEQUENTIALLY, one bun-test invocation
       // each, with a per-test --timeout of 30 s. Two disclosed reasons:
       //   1. Against a remote Postgres (Neon) every server-side statement pays a network
       //      RTT — a single jobs POST renders in ~2 s — so bun's 5 s DEFAULT per-test
@@ -205,7 +205,7 @@ async function main() {
       //      whose single-writer lock serialized this away) surfaces it as an FK 500 on
       //      tx.generation.create — the exact cascade the station log captured (6 FK
       //      failures in the first parallel run, 0 when files run sequentially).
-      const FILES = ["api", "e2e", "hardening"];
+      const FILES = ["api", "e2e", "hardening", "influencer"]; // HF-W7: + influencer (characters/generate/motion pipeline)
       let batteryCode = 0;
       let batteryOut = "";
       for (const f of FILES) {
