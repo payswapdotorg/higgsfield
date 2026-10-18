@@ -84,17 +84,20 @@ removed; battery **47/47** (23 api + 1 e2e + 4 hardening + **19 influencer**).
   influencer cost is fractional (1.125/generate, 0.5625 per sheet job; Int silently
   truncates it — probe-verified).
 - Provider matrix, env-gated with **mock defaults** so the battery stays deterministic:
-  image = `HF_IMAGE_PROVIDER` (`mock` | `openrouter` — Vercel prod | `zai` — sandbox) ·
-  video = `HF_VIDEO_PROVIDER` (`mock` | `dashscope` wan2.2-i2v — works everywhere incl.
+  image = `HF_IMAGE_PROVIDER` (`mock` | `cloudflare` — Vercel prod since wave-7.1,
+  credit-free Workers AI on the user's existing CF account, Task 85 | `openrouter` —
+  switchable when the account has credits | `zai` — sandbox) · video =
+  `HF_VIDEO_PROVIDER` (`mock` | `dashscope` wan2.2-i2v — works everywhere incl.
   Vercel | `zai`). A non-mock selection without its key falls back to mock with a warn.
 - New API family (API surface, not page-parity entries): `/api/characters` (+ `/[id]`,
   `/[id]/generate`, `/[id]/motion`) — snake_case bodies, strict spec/reference validation,
   §1a-atomic credit burns, the character-detail GET as the polling/thaw route.
 - Full delivery record, station verification record + 18 disclosures:
   **docs/wave-7-worker-worklog.md** · reference analysis, ADRs, measured engine
-  benchmarks, license review: **docs/ai-influencer/** · deployment env vars:
-  **docs/DEPLOYMENT.md** (the wave-6 table — the wave-7 provider gates above are
-  documented in the wave-7 worklog until the runbook is extended).
+  benchmarks, license review: **docs/ai-influencer/** · deployment env vars incl.
+  the wave-7/7.1 provider gates (image = `cloudflare` in prod, video = `dashscope`):
+  **docs/DEPLOYMENT.md** (§ Influencer generation engines — runbook extended in
+  Task 85, closing the wave-7 gap Task 83 flagged).
 
 ## Generation pipeline (wave-2 core, hardened in wave 4)
 

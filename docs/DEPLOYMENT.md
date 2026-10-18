@@ -33,6 +33,40 @@ Exact names, as read by the code:
 | `MOCK_CHALLENGE_PCT` | no | `0` | Seeded DataDome-modeled 429 challenge rate (%) on job POSTs — exercises the client's challenge/retry path. Keep `0` in production. |
 | `JOBS_RATE_LIMIT_PER_MIN` | no | `30` (`0` disables) | Per-user fixed-window (60 s) limiter on `POST /api/jobs/{model}` → 429 + `Retry-After` + the §1a challenge body. In-memory per server process — on serverless the effective limit scales with concurrent warm instances (clone-side hardening, disclosed). |
 
+### Influencer generation engines (wave 7 / wave 7.1 — Task 85)
+
+The AI Influencer studio routes through an env-gated provider layer
+(`src/server/influencer/`); unset ⇒ `mock` (the test battery default).
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `HF_IMAGE_PROVIDER` | no | `mock` | Influencer image engine: `mock` \| `openrouter` \| `cloudflare` \| `zai`. **Production value: `cloudflare`** — the credit-free Workers AI engine (Task 85) that replaced the 402-blocked OpenRouter route. A non-mock pick without its keys falls back to `mock` with an `[f-influencer]` warn. |
+| `HF_VIDEO_PROVIDER` | no | `mock` | Influencer motion engine: `mock` \| `dashscope` (wan2.2-i2v — works everywhere incl. Vercel) \| `zai` (sandbox-only). **Production value: `dashscope`.** |
+| `OPENROUTER_API_KEY` | no (since Task 85) | — | OpenRouter API key — the PREVIOUS image engine. **Optional now**: OpenRouter image models answer HTTP 402 without a ≥ $1.00 balance the account cannot hold. Keep only if you switch `HF_IMAGE_PROVIDER=openrouter` after adding credits. |
+| `DASHSCOPE_API_KEY` | for `HF_VIDEO_PROVIDER=dashscope` | — | Alibaba DashScope **intl** key (the China endpoint rejects this key class). |
+| `CLOUDFLARE_API_TOKEN` | for `HF_IMAGE_PROVIDER=cloudflare` | — | Cloudflare API token, used with the account id below. |
+| `CLOUDFLARE_ACCOUNT_ID` | for `HF_IMAGE_PROVIDER=cloudflare` | — | Cloudflare account id (the REST run path is `/accounts/{id}/ai/run/{model}`). |
+| `HF_CF_IMAGE_MODEL` | no | `@cf/black-forest-labs/flux-2-klein-9b` | Primary Cloudflare image model — the multipart route that consumes the identity-reference `image` form part (multi-reference editing). |
+| `HF_CF_IMAGE_FALLBACK_MODEL` | no | `@cf/bytedance/stable-diffusion-xl-lightning` | One-shot prompt-only fallback when the primary attempt fails (`none` disables). |
+
+**Free-neuron budget** (Workers AI free allocation on the user's account:
+10,000 neurons/day — station-measured 2026-10-18):
+
+| Model | Neurons/image | Images/day within the free allocation |
+|---|---|---|
+| `@cf/black-forest-labs/flux-2-klein-9b` (primary) | ~909 | **≈ 10/day** |
+| `@cf/black-forest-labs/flux-1-schnell` | 172.8 | ≈ 57/day |
+| `@cf/bytedance/stable-diffusion-xl-lightning` | 0 (beta, price 0) | unlimited / free |
+
+**SDXL auto-fallback behavior:** when the primary model attempt fails with any
+provider-classified error (the typical case: the daily klein neuron quota is
+exhausted after ~10 images), the provider automatically retries ONCE with the
+free `stable-diffusion-xl-lightning` fallback (prompt-only, portrait 1024×1024 /
+full-body 768×1152) so the studio degrades instead of hard-failing; the asset's
+`meta.fallbackUsed` records it. Set `HF_CF_IMAGE_FALLBACK_MODEL=none` to disable.
+Measured engine facts (latencies, response shapes, the dead DashScope t2i
+probes): `docs/ai-influencer/IMAGE_ROUTE_BENCHMARK.md`.
+
 (`MOCK_FAILURE_PCT` / `MOCK_CHALLENGE_PCT` and the `[fail]` / `[fail-once]` /
 `[fail-terminal]` prompt tokens exist to demonstrate the wave-4 retry patterns
 deterministically; they are test/demo levers, not product behavior.)
