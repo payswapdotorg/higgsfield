@@ -2,8 +2,8 @@
  * HF-W7 AI Influencer provider contracts — the pluggable generation-engine seam
  * (the influencer analogue of src/server/adapters/types.ts ModelAdapter).
  *
- * Engine matrix (Task 77-78 live probes):
- *   IMAGE  = openrouter (Vercel prod route) | zai (sandbox/local) | mock (tests)
+ * Engine matrix (Task 77-78 live probes; Task 85 replacement):
+ *   IMAGE  = openrouter (credit-blocked) | cloudflare (Vercel prod default) | zai (sandbox) | mock (tests)
  *   VIDEO  = dashscope intl wan2.2-i2v (works everywhere incl. Vercel) | zai | mock
  * Selection is env-gated in ./index.ts (HF_IMAGE_PROVIDER / HF_VIDEO_PROVIDER),
  * defaulting to mock so the battery stays deterministic.
