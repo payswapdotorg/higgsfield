@@ -24,6 +24,30 @@
  * loop would let a permanently failing model mint free churn; the live product's billing
  * behavior on retries was not captured). Insufficient-credit failures never reach the queue
  * at all (the POST returns a terminal 402 before job creation), so they are terminal by design.
+ *
+ * Task 94 — stuck-job reaper (production incident 2026-10-19, evidence verbatim;
+ * re-verified first-hand read-only against the live Neon DB — job ids, timestamps,
+ * per-job cost 0.5625×2 = 1.125 credits, and the post-rescue CF 429 terminal state
+ * all match): a REAL user ran an AI-Influencer character sheet at 07:11:19 UTC — two
+ * jobs, cmvex1cws0001l208g1twe8c5 (influencer_portrait) + cmvex1cy40005l2083l456jep
+ * (influencer_fullbody), attempt=1, 1.125 credits burned atomically at creation (§1a).
+ * The Vercel serverless invocation that claimed them (status → processing, startedAt
+ * 07:11:20) DIED mid-flight (invocation end / platform throttle). claimNext() only ever
+ * selects status:"queued", so both rows sat in `processing` for 40+ minutes (the station
+ * incident record says "45+"; the rows' post-rescue re-claim is timestamped 07:51:25) —
+ * the user's UI spun forever, no retry affordance ever appeared, and the station had to
+ * re-queue them by hand (they then failed on an UNRELATED Cloudflare quota 429 — separate
+ * incident, NOT addressed here). Root cause: no reaper existed for claimed-but-abandoned
+ * jobs — wave 4 hardened adapter crashes and DB contention, but not serverless invocation
+ * death. Fix: reapStuckJobs(), called from every tick — a read-only gate over `processing`
+ * rows whose startedAt is older than HF_WORKER_STUCK_CUTOFF_MIN (default 15, floor 5;
+ * never-fail parse in the Task 86/93 style). attempt < MAX_ATTEMPTS → CAS requeue that
+ * CONSUMES an attempt (attempt + 1, mirroring the H2 adapter-retry bookkeeping exactly —
+ * a reaper requeue is bookkept identically to an adapter-level retry, so a job that keeps
+ * dying with its invocation still terminates at MAX_ATTEMPTS); attempt ≥ MAX_ATTEMPTS →
+ * CAS terminal fail with the incident-class error message. Every reaper write is
+ * additionally guarded on the EXACT startedAt value read, so a row re-claimed or completed
+ * between the read and the write resolves count=0 — logged, skipped, never thrown.
  */
 import { db } from "@/lib/db";
 import type { Generation, Prisma } from "@prisma/client";
@@ -55,6 +79,44 @@ const MAX_BACKOFF_SECONDS = 60;
 // H2: ONE automatic retry for retryable causes (maxAttempts = 2 — attempt 1 + attempt 2).
 const MAX_ATTEMPTS = 2;
 
+// Task 94 stuck-job reaper (see the header's incident evidence): minutes a job may stay in
+// `processing` before the reaper acts. Default 15 sits above every legitimate in-flight
+// adapter — the longest is the dashscope wan2.2 10-minute poll timeout — so at the default
+// a live run can never be reaped; the 5-minute floor protects legitimately-running wan2.2
+// polls from an aggressively-low station override (anything below 5 is dangerous).
+const STUCK_CUTOFF_MIN_DEFAULT = 15;
+const STUCK_CUTOFF_MIN_FLOOR = 5;
+// Stuck rows handled per tick: a pathological backlog drains over successive ticks,
+// mirroring the bounded claim loop in tick() (4 claims/tick) instead of one unbounded
+// serial write chain inside a single tick.
+const REAP_BATCH = 8;
+
+/**
+ * HF_WORKER_STUCK_CUTOFF_MIN (default 15, Task 94): minutes a job may stay in `processing`
+ * before the stuck-job reaper acts. Never-fail parse in the Task 86/93 house style
+ * (parseSubmitTimeoutMs in influencer/dashscope-provider.ts): missing / non-numeric /
+ * < 1 → the default (15 is above every legitimate in-flight adapter, incl. the dashscope
+ * wan2.2 10-minute poll timeout); values in [1, 5) clamp UP to the 5-minute floor with a
+ * warn — anything below 5 could reap a legitimately-running wan2.2 poll.
+ */
+function parseStuckCutoffMin(): number {
+  const raw = process.env.HF_WORKER_STUCK_CUTOFF_MIN;
+  if (raw === undefined || raw.trim() === "") return STUCK_CUTOFF_MIN_DEFAULT;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1) return STUCK_CUTOFF_MIN_DEFAULT;
+  if (parsed < STUCK_CUTOFF_MIN_FLOOR) {
+    console.warn(
+      `[f-worker] HF_WORKER_STUCK_CUTOFF_MIN=${raw} is below the ${STUCK_CUTOFF_MIN_FLOOR}min floor — clamping up (Task 94; a lower cutoff could reap a legitimately-running wan2.2 poll)`
+    );
+    return STUCK_CUTOFF_MIN_FLOOR;
+  }
+  return parsed;
+}
+
+// Parsed ONCE at module level (the Task 93 SUBMIT_TIMEOUT_MS style): side-effect-free at
+// the default — the mock/test path (env unset) sees zero logging and zero behavior change.
+const STUCK_CUTOFF_MIN = parseStuckCutoffMin();
+
 const globalForWorker = globalThis as unknown as {
   __hfWorkerStarted?: boolean;
   // Backoff state lives on globalThis so a dev-HMR replacement timer shares it with the old one.
@@ -80,7 +142,7 @@ export function ensureWorker(): void {
   // console.error, lifecycle transitions via console.log — so `grep "\[f-worker\]"` is the
   // single station-side surface for worker health.
   console.log(
-    `[f-worker] started (tick=${TICK_INTERVAL_MS}ms, backoff<=${MAX_BACKOFF_SECONDS}s, maxAttempts=${MAX_ATTEMPTS})`
+    `[f-worker] started (tick=${TICK_INTERVAL_MS}ms, backoff<=${MAX_BACKOFF_SECONDS}s, maxAttempts=${MAX_ATTEMPTS}, stuckCutoff=${STUCK_CUTOFF_MIN}min — Task 94 reaper armed)`
   );
   const timer = setInterval(() => {
     void tick();
@@ -117,6 +179,9 @@ async function tick(): Promise<void> {
       if (!job) break;
       void runJob(job);
     }
+    // Task 94: every tick also reaps claimed-but-abandoned rows (read-gated inside —
+    // see reapStuckJobs). A reaper throw counts as a dirty tick: the backoff applies.
+    await reapStuckJobs();
     backoff.consecutiveErrors = 0; // clean tick resets the backoff
   } catch (err) {
     backoff.consecutiveErrors += 1;
@@ -136,14 +201,102 @@ async function tick(): Promise<void> {
  */
 async function casUpdate(
   id: string,
-  data: Prisma.GenerationUpdateManyMutationInput
+  data: Prisma.GenerationUpdateManyMutationInput,
+  guardStartedAt?: Date
 ): Promise<boolean> {
   try {
-    const res = await db.generation.updateMany({ where: { id, status: "processing" }, data });
+    // Task 94: reaper writes pass guardStartedAt so the update additionally requires the
+    // row to still hold the EXACT startedAt value the reaper read — a row re-claimed
+    // (fresh startedAt) or completed (status moved) between the read and the write
+    // resolves count=0 here and is skipped, never clobbered. The adapter paths (runJob)
+    // keep the plain id+status guard (their job argument is the claim owner).
+    const res = await db.generation.updateMany({
+      where:
+        guardStartedAt === undefined
+          ? { id, status: "processing" }
+          : { id, status: "processing", startedAt: guardStartedAt },
+      data,
+    });
     return res.count === 1;
   } catch (err) {
     console.error(`[f-worker] state write failed for job ${id}:`, err);
     return false;
+  }
+}
+
+/**
+ * Task 94 stuck-job reaper (see the header's incident evidence): a serverless invocation
+ * that died mid-flight after the CAS claim but before any terminal write leaves its row
+ * stranded in `processing` — claimNext() only ever selects `queued`, so nothing ever
+ * touches it again. This pass reclaims such rows.
+ *
+ * H1 read-gate preserved: the findMany below is read-only — when no row has been in
+ * `processing` longer than STUCK_CUTOFF_MIN (the steady state, incl. every battery run:
+ * jobs are claimed and completed in seconds, far under the 15-minute default; and the
+ * longest legitimate in-flight adapter is the 10-minute dashscope wan2.2 poll), NO write
+ * transaction opens at all. Bookkeeping mirrors runJob's H2 retry branch exactly: a
+ * requeue consumes an attempt (attempt + 1) and returns the row to a clean queued state;
+ * attempt ≥ MAX_ATTEMPTS → terminal failed with the incident-class error message. Writes
+ * are CAS-guarded on id + status:"processing" + the exact startedAt read (casUpdate's
+ * guardStartedAt) — a row that moved under us resolves count=0: logged, skipped, never
+ * thrown.
+ */
+async function reapStuckJobs(): Promise<void> {
+  const cutoffAgo = new Date(Date.now() - STUCK_CUTOFF_MIN * 60_000);
+  const stuck = await db.generation.findMany({
+    where: { status: "processing", startedAt: { lt: cutoffAgo } },
+    orderBy: { startedAt: "asc" }, // oldest first — the longest-stuck rows reap first
+    take: REAP_BATCH,
+  });
+  if (stuck.length === 0) return; // read-gate: nothing stuck → no write transaction opens
+  const now = new Date();
+  for (const job of stuck) {
+    // findMany matched `startedAt < cutoffAgo`, so startedAt is non-null on every matched
+    // row; this guard is for the type system only.
+    if (!job.startedAt) continue;
+    const ageMin = (now.getTime() - job.startedAt.getTime()) / 60_000;
+    if (job.attempt >= MAX_ATTEMPTS) {
+      const applied = await casUpdate(
+        job.id,
+        {
+          status: "failed",
+          error: `job stuck in processing for >${STUCK_CUTOFF_MIN}min (serverless invocation death — Task 94 reaper)`,
+          completedAt: now,
+        },
+        job.startedAt
+      );
+      if (applied) {
+        console.error(
+          `[f-worker] reaper: job ${job.id} stuck ${ageMin.toFixed(1)}min at attempt ${job.attempt}/${MAX_ATTEMPTS} → failed (serverless invocation death — Task 94)`
+        );
+      } else {
+        console.log(`[f-worker] reaper: job ${job.id} moved before the terminal write — skipped (Task 94)`);
+      }
+    } else {
+      // Requeue: attempt + 1 mirrors the H2 adapter-retry bookkeeping EXACTLY — the reaper's
+      // requeue consumes an attempt just like an adapter-level retry does (runJob's failure
+      // branch re-enqueues with attempt: job.attempt + 1), so a job that keeps dying with
+      // its invocation still terminates at MAX_ATTEMPTS. Ledger/spend stay as-is (the cost
+      // was already paid at POST time — see the file header's §1a rationale).
+      const applied = await casUpdate(
+        job.id,
+        {
+          status: "queued",
+          attempt: job.attempt + 1,
+          error: null,
+          startedAt: null,
+          completedAt: null,
+        },
+        job.startedAt
+      );
+      if (applied) {
+        console.log(
+          `[f-worker] reaper: job ${job.id} stuck ${ageMin.toFixed(1)}min at attempt ${job.attempt}/${MAX_ATTEMPTS} → requeued as attempt ${job.attempt + 1} (serverless invocation death — Task 94)`
+        );
+      } else {
+        console.log(`[f-worker] reaper: job ${job.id} moved before the requeue write — skipped (Task 94)`);
+      }
+    }
   }
 }
 
