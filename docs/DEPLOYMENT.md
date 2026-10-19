@@ -33,7 +33,7 @@ Exact names, as read by the code:
 | `MOCK_CHALLENGE_PCT` | no | `0` | Seeded DataDome-modeled 429 challenge rate (%) on job POSTs — exercises the client's challenge/retry path. Keep `0` in production. |
 | `JOBS_RATE_LIMIT_PER_MIN` | no | `30` (`0` disables) | Per-user fixed-window (60 s) limiter on `POST /api/jobs/{model}` → 429 + `Retry-After` + the §1a challenge body. In-memory per server process — on serverless the effective limit scales with concurrent warm instances (clone-side hardening, disclosed). |
 
-### Influencer generation engines (wave 7 / wave 7.1 — Task 85)
+### Influencer generation engines (wave 7 / 7.1 / 7.2 / 7.3 — Tasks 85/86/93)
 
 The AI Influencer studio routes through an env-gated provider layer
 (`src/server/influencer/`); unset ⇒ `mock` (the test battery default).
@@ -44,6 +44,8 @@ The AI Influencer studio routes through an env-gated provider layer
 | `HF_VIDEO_PROVIDER` | no | `mock` | Influencer motion engine: `mock` \| `dashscope` (wan2.2-i2v — works everywhere incl. Vercel) \| `zai` (sandbox-only). **Production value: `dashscope`.** |
 | `OPENROUTER_API_KEY` | no (since Task 85) | — | OpenRouter API key — the PREVIOUS image engine. **Optional now**: OpenRouter image models answer HTTP 402 without a ≥ $1.00 balance the account cannot hold. Keep only if you switch `HF_IMAGE_PROVIDER=openrouter` after adding credits. |
 | `DASHSCOPE_API_KEY` | for `HF_VIDEO_PROVIDER=dashscope` | — | Alibaba DashScope **intl** key (the China endpoint rejects this key class). |
+| `HF_DASHSCOPE_SUBMIT_TIMEOUT_MS` | no | `60000` | wan2.2 submit POST timeout in ms (Task 93 — the Vercel-egress stall knob; default **unchanged**). Never-fail parse: missing / non-numeric / ≤ 0 → default (the timeout cannot be disabled); values above `300000` clamp to `300000` with a warn. On a fetch-level submit network error the provider also retries ONCE on a fresh connection (orphan-task risk disclosed in `docs/ai-influencer/VIDEO_ROUTE_BENCHMARK.md` § Task 93). |
+| `HF_DASHSCOPE_REF_MAX_KB` | no | `220` | Max decoded KB of a data-URI reference allowed through the wan2.2 submit body uncompacted — the Task 86 compaction threshold (sharp 768px / JPEG q82); ≤ 0 disables compaction. (Row added in Task 93, closing the wave-7.2 gap — the knob had been documented only in the benchmark doc.) |
 | `CLOUDFLARE_API_TOKEN` | for `HF_IMAGE_PROVIDER=cloudflare` | — | Cloudflare API token, used with the account id below. |
 | `CLOUDFLARE_ACCOUNT_ID` | for `HF_IMAGE_PROVIDER=cloudflare` | — | Cloudflare account id (the REST run path is `/accounts/{id}/ai/run/{model}`). |
 | `HF_CF_IMAGE_MODEL` | no | `@cf/black-forest-labs/flux-2-klein-9b` | Primary Cloudflare image model — the multipart route that consumes the identity-reference `image` form part (multi-reference editing). |
