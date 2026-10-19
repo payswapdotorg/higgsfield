@@ -32,6 +32,7 @@ Exact names, as read by the code:
 | `MOCK_FAILURE_PCT` | no | `0` | Seeded probabilistic *retryable* adapter-failure roll (%) — deterministic per job seed. Keep `0` in production. |
 | `MOCK_CHALLENGE_PCT` | no | `0` | Seeded DataDome-modeled 429 challenge rate (%) on job POSTs — exercises the client's challenge/retry path. Keep `0` in production. |
 | `JOBS_RATE_LIMIT_PER_MIN` | no | `30` (`0` disables) | Per-user fixed-window (60 s) limiter on `POST /api/jobs/{model}` → 429 + `Retry-After` + the §1a challenge body. In-memory per server process — on serverless the effective limit scales with concurrent warm instances (clone-side hardening, disclosed). |
+| `HF_WORKER_STUCK_CUTOFF_MIN` | no | `15` | Stuck-job reaper cutoff (Task 94): minutes a job may stay in `processing` before the in-process worker reaps it — CAS-guarded requeue (consumes an attempt, the H2 retry bookkeeping) below `maxAttempts`, terminal `failed` at `maxAttempts`. Never-fail parse: missing / non-numeric / < 1 → `15` (above every legitimate in-flight adapter — the longest is the dashscope wan2.2 10-minute poll timeout); values in `[1, 5)` clamp up to the 5-minute floor with an `[f-worker]` warn (a lower cutoff could reap a legitimately-running wan2.2 poll). See §5. |
 
 ### Influencer generation engines (wave 7 / 7.1 / 7.2 / 7.3 — Tasks 85/86/93)
 
@@ -153,7 +154,8 @@ call.** The last fetch wins and every previously fetched password dies *instantl
 
 The generation worker is **in-process** (`src/server/worker.ts`, the "f-worker"): it
 dequeues `queued → processing → done/failed` jobs via CAS-guarded `updateMany` claims,
-with one automatic retry for retryable adapter failures (`maxAttempts = 2`).
+with one automatic retry for retryable adapter failures (`maxAttempts = 2`) — and, since
+Task 94, a stuck-job reaper for claimed-but-abandoned rows (see below).
 
 - `ensureWorker()` is called inside **`GET /api/jobs/accessible`** and
   **`POST /api/jobs/[model]`** — the worker (re)starts per invocation, guarded on
@@ -164,6 +166,31 @@ with one automatic retry for retryable adapter failures (`maxAttempts = 2`).
   lambda in between.
 - The tick loop calls `timer.unref()` — it **never holds an invocation open** (the
   request response is the only thing keeping the function alive).
+- **Stuck-job reaper (Task 94)**: `claimNext()` only ever selects `queued`, so a
+  serverless invocation that dies mid-flight (invocation end / platform throttle —
+  after the CAS claim, before any terminal write) would strand its row in
+  `processing` forever. Production incident, 2026-10-19 07:11 UTC: a REAL user's
+  AI-Influencer character sheet created two jobs (`cmvex1cws0001l208g1twe8c5`
+  portrait + `cmvex1cy40005l2083l456jep` fullbody, attempt=1, 1.125 credits burned
+  atomically at POST); the claiming invocation died at 07:11:20 and both rows sat
+  claimed-but-abandoned for 40+ minutes (the station incident record says "45+"; the
+  rows' post-rescue re-claim is timestamped 07:51:25 UTC) — the user's UI spun forever
+  with no retry affordance until the station re-queued them by hand (they then failed
+  on an UNRELATED Cloudflare quota 429 — separate incident). Every tick therefore also
+  runs a **read-only gate** over `processing` rows with `startedAt` older than
+  `HF_WORKER_STUCK_CUTOFF_MIN` (§2) — nothing stuck ⇒ no write transaction opens at
+  all (the wave-4 H1 read-gate law). Stuck rows: `attempt < maxAttempts` →
+  CAS-guarded requeue (`queued`, `startedAt: null`, `attempt + 1` — the same
+  bookkeeping as an adapter-level retry, so a job that keeps losing its invocation
+  still terminates at `maxAttempts`); `attempt ≥ maxAttempts` → CAS-guarded terminal
+  `failed` with a `job stuck in processing for >15min (serverless invocation death —
+  Task 94 reaper)`-class error. Reaper writes are additionally guarded on the **exact
+  `startedAt` value read** — a row re-claimed or completed between read and write
+  resolves `count=0` and is skipped (logged, never thrown). On Vercel the reaper
+  piggybacks on the same client-driven thaw cycle as the rest of the worker: it runs
+  whenever any invocation ticks the worker — exactly what rescued the 07:11 incident
+  manually — and cannot run on a timer by itself (the architecture contract below,
+  unchanged).
 - The client polls `GET /api/jobs/accessible` every 2 s (backoff `1.15^n`, capped 10 s).
   With `MOCK_ADAPTER_MS=50` (±20% jitter → 40–60 ms) a job completes **within 1–2 client
   polls**, so the UX is near-instant on the demo deployment.
