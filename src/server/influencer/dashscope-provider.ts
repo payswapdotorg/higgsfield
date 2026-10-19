@@ -41,6 +41,39 @@
  *     NEVER-FAIL: on any sharp import/processing error the ORIGINAL reference
  *     is submitted unchanged (compaction must never block the pipeline), and
  *     a compact that is not smaller than the original keeps the original too.
+ *
+ * Task 93 production evidence + mitigation (2026-10-18, re-verified first-hand
+ * by this worker with a read-only query against the live Neon DB — the DB
+ * behind the Vercel deployment; job errors verbatim; nothing invented):
+ *   · The submit stall is INTERMITTENT, not size-gated — Task 86's compaction
+ *     reduced but did NOT eliminate it: 2026-10-18T22:03:03Z failed
+ *     POST-compaction (the live deployment was 223c584, which includes the
+ *     mitigation) with the same `dashscope submit: network error — The
+ *     operation was aborted due to timeout`; so did 13:00:01Z and 13:05:01Z.
+ *   · BUT the user-level re-submits SUCCEEDED: 22:08:58Z (the 22:03 retry) and
+ *     13:41:43Z both produced real wan2.2 MP4s (cost 5 each). A FRESH submit
+ *     attempt goes through — the stall is connection-level.
+ *   · Mitigation (this file): on a fetch-level submit network error —
+ *     AbortError/timeout, ECONNRESET, EPIPE, socket hang-up, any transport
+ *     failure thrown by fetch BEFORE an HTTP response exists (an
+ *     InfluencerProviderError means an HTTP response ARRIVED — its per-status
+ *     classification stands and is never retried here) — retry the submit
+ *     EXACTLY ONCE with a completely fresh fetch (fresh connection + fresh
+ *     AbortSignal). A second transport failure throws the ORIGINAL (first)
+ *     error. The submit body is built ONCE before both attempts (compaction
+ *     is expensive and deterministic; only the fetch is retried).
+ *   · DISCLOSED RISK: if the first submit actually reached dashscope and only
+ *     the RESPONSE was lost, the retry orphans a server-side task whose
+ *     output is never fetched — no correctness impact (only the retry's task
+ *     ID is tracked), but it wastes dashscope free-tier quota. Mirrors the
+ *     single-fallback pattern in cloudflare-provider.ts (Task 85) — the same
+ *     one-extra-attempt trade-off class, disclosed there too.
+ *   · Submit timeout knob HF_DASHSCOPE_SUBMIT_TIMEOUT_MS (default 60_000 —
+ *     UNCHANGED; the station decides the prod value): never-fail module-level
+ *     parse (the Task 86 HF_DASHSCOPE_REF_MAX_KB style) — missing / non-numeric
+ *     / ≤ 0 → default (the timeout can NOT be disabled; an unbounded submit
+ *     would hang a serverless invocation); values above the 300_000 serverless
+ *     sanity cap clamp to the cap with a console.warn.
  */
 
 import { sleep } from "@/lib/seeded-rng";
@@ -58,8 +91,12 @@ const SUBMIT_PATH = "/api/v1/services/aigc/video-generation/video-synthesis";
 const TASK_PATH = "/api/v1/tasks";
 const POLL_INTERVAL_MS = 3_000;
 const POLL_TIMEOUT_MS = 10 * 60 * 1000;
-const SUBMIT_TIMEOUT_MS = 60_000;
 const POLL_TIMEOUT_PER_CALL_MS = 30_000;
+
+// Task 93 submit-timeout knob (see the header's production evidence):
+// the wan2.2 submit POST timeout in ms — env-tunable, default UNCHANGED at 60s.
+const SUBMIT_TIMEOUT_MS_DEFAULT = 60_000;
+const SUBMIT_TIMEOUT_MS_CAP = 300_000; // 5 min — serverless sanity; larger env values clamp here
 
 // Task 86 compaction knobs (see the header's station measurements):
 // max decoded KB allowed through the submit body UNCOMPACTED (default 220);
@@ -90,6 +127,33 @@ function refMaxKb(): number {
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : REF_MAX_KB_DEFAULT;
 }
+
+/**
+ * HF_DASHSCOPE_SUBMIT_TIMEOUT_MS (default 60_000 — UNCHANGED, Task 93): the
+ * wan2.2 submit POST timeout in ms. Never-fail parse in the Task 86
+ * HF_DASHSCOPE_REF_MAX_KB style: missing / non-numeric / unparsable / ≤ 0 →
+ * the default — the timeout can NOT be disabled (an unbounded submit would
+ * hang a serverless invocation); values above the 5-minute serverless sanity
+ * cap clamp to the cap with a warn.
+ */
+function parseSubmitTimeoutMs(): number {
+  const raw = process.env.HF_DASHSCOPE_SUBMIT_TIMEOUT_MS;
+  if (raw === undefined || raw.trim() === "") return SUBMIT_TIMEOUT_MS_DEFAULT;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return SUBMIT_TIMEOUT_MS_DEFAULT;
+  if (parsed > SUBMIT_TIMEOUT_MS_CAP) {
+    console.warn(
+      `[f-influencer] HF_DASHSCOPE_SUBMIT_TIMEOUT_MS=${raw} exceeds the ${SUBMIT_TIMEOUT_MS_CAP}ms serverless cap — clamping (Task 93)`
+    );
+    return SUBMIT_TIMEOUT_MS_CAP;
+  }
+  return parsed;
+}
+
+// Parsed ONCE at module level (Task 93). Side-effect-free at the default — the
+// mock/test path (provider envs unset) sees zero logging and zero behavior
+// change. Each submit attempt builds a FRESH AbortSignal from this value.
+const SUBMIT_TIMEOUT_MS = parseSubmitTimeoutMs();
 
 /**
  * Vercel-egress throttle mitigation (Task 86): compact a bulky data-URI
@@ -156,6 +220,28 @@ interface DashScopeTaskResponse {
   request_id?: string;
 }
 
+/**
+ * One wan2.2 submit POST attempt (async task API — X-DashScope-Async: enable
+ * is mandatory). Throws readJsonOrThrow's InfluencerProviderError whenever an
+ * HTTP response arrives (per-status classification — the caller does NOT
+ * retry those), and propagates the RAW fetch-level error on transport failure
+ * (AbortError/timeout, ECONNRESET, EPIPE, socket hang-up — the caller's
+ * fresh-connection retry territory, Task 93). A fresh AbortSignal per call.
+ */
+async function submitTask(apiKey: string, body: string): Promise<DashScopeSubmitResponse> {
+  const res = await fetch(`${baseUrl()}${SUBMIT_PATH}`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+      "x-dashscope-async": "enable",
+    },
+    body,
+    signal: AbortSignal.timeout(SUBMIT_TIMEOUT_MS), // fresh signal per attempt (Task 93)
+  });
+  return (await readJsonOrThrow(res, `dashscope submit (${videoModel()})`)) as DashScopeSubmitResponse;
+}
+
 export const dashscopeMotionProvider: InfluencerMotionProvider = {
   name: "dashscope",
 
@@ -169,33 +255,58 @@ export const dashscopeMotionProvider: InfluencerMotionProvider = {
     // when it is a bulky data URI BEFORE building the submit body. ──
     const imgRef = await compactReferenceIfBulky(req.referenceImage);
 
-    // ── submit (async task API — X-DashScope-Async: enable is mandatory) ──
+    // ── submit (async task API) — Task 93: one fresh-connection retry on a
+    // fetch-level network error. The body is built ONCE before the attempts
+    // (compaction ran above — expensive and deterministic; both attempts
+    // reuse the identical body); only the fetch itself is retried. ──
+    const submitBody = JSON.stringify({
+      model: videoModel(),
+      input: {
+        prompt: req.prompt,
+        img_url: imgRef, // data URI (compacted when bulky — Task 86) or https URL — verbatim pass-through
+      },
+      parameters: {
+        size: VIDEO_SIZE,
+        duration: req.durationSeconds,
+      },
+    });
+
     let submit: DashScopeSubmitResponse;
     try {
-      const res = await fetch(`${baseUrl()}${SUBMIT_PATH}`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${apiKey}`,
-          "content-type": "application/json",
-          "x-dashscope-async": "enable",
-        },
-        body: JSON.stringify({
-          model: videoModel(),
-          input: {
-            prompt: req.prompt,
-            img_url: imgRef, // data URI (compacted when bulky — Task 86) or https URL — verbatim pass-through
-          },
-          parameters: {
-            size: VIDEO_SIZE,
-            duration: req.durationSeconds,
-          },
-        }),
-        signal: AbortSignal.timeout(SUBMIT_TIMEOUT_MS),
-      });
-      submit = (await readJsonOrThrow(res, `dashscope submit (${videoModel()})`)) as DashScopeSubmitResponse;
+      submit = await submitTask(apiKey, submitBody);
     } catch (err) {
-      if (err instanceof InfluencerProviderError) throw err;
-      throw networkError("dashscope submit", err);
+      if (err instanceof InfluencerProviderError) {
+        // An HTTP response arrived — the existing per-status classification
+        // stands; NO fresh-connection retry (a status-carrying answer would
+        // come back the same way, and the worker's own retry machinery
+        // already handles the retryable statuses).
+        throw err;
+      }
+      // Fetch-level transport failure (AbortError/timeout, ECONNRESET, EPIPE,
+      // socket hang-up — anything thrown before an HTTP response exists).
+      // Production evidence (header, Task 93): the Vercel→dashscope-intl
+      // stall is connection-level and intermittent, and a FRESH submit went
+      // through twice at user level (22:03→22:08, 13:05→13:41) — so retry the
+      // submit EXACTLY ONCE with a completely fresh fetch (fresh connection +
+      // fresh AbortSignal). DISCLOSED RISK: if the first submit reached
+      // dashscope and only the response was lost, this retry orphans a
+      // server-side task whose output is never fetched — no correctness impact
+      // (only the retry's task ID is tracked), it wastes dashscope free-tier
+      // quota; mirrors the single-fallback pattern in cloudflare-provider.ts
+      // (Task 85).
+      const brief = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `[f-influencer] dashscope submit retry 1/1 after network error (${brief.slice(0, 200)}): fresh connection (Task 93 — Vercel-egress stall mitigation)`
+      );
+      try {
+        submit = await submitTask(apiKey, submitBody);
+      } catch (err2) {
+        if (err2 instanceof InfluencerProviderError) throw err2; // the retry got an HTTP response — its classification stands
+        // Second transport failure — the ORIGINAL (first) error stands: the
+        // job fails with the existing error shape, never masked by the retry's
+        // own failure.
+        throw networkError("dashscope submit", err);
+      }
     }
 
     const taskId = submit.output?.task_id;
